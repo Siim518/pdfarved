@@ -2,8 +2,11 @@
 <html lang="et">
 <head>
   <meta charset="UTF-8" />
-  <title>Arve generaator - Koeratoit.com + Arhiiv</title>
+  <title>Arve Generator (Mobile Friendly)</title>
+  <!-- Ensures mobile-friendly scaling -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    /* Overall page background and centering */
     body {
       background-color: #f8e8d5;
       font-family: Arial, sans-serif;
@@ -11,6 +14,7 @@
       padding: 0;
       text-align: center;
     }
+
     header {
       margin-top: 20px;
       margin-bottom: 20px;
@@ -24,14 +28,18 @@
     header h1 {
       margin: 10px 0 0 0;
     }
+
+    /* Container is now responsive: width 90%, max-width 550px */
     .container {
       background-color: #fff;
-      width: 550px;
+      width: 90%;
+      max-width: 550px;
       margin: 20px auto 30px auto;
       padding: 20px;
       border-radius: 8px;
-      text-align: left;
+      text-align: left; /* left-align content inside */
     }
+
     label {
       display: block;
       margin-top: 10px;
@@ -42,12 +50,24 @@
       display: block;
       margin-bottom: 10px;
       width: 100%;
-      padding: 6px;
+      box-sizing: border-box; /* ensures padding doesn't add to overall width */
+      padding: 8px;
       font-size: 14px;
     }
+
+    /* Product group row spacing + wrapping */
     .product-group {
+      display: flex;
+      flex-wrap: wrap; /* allows inputs to wrap on smaller screens */
+      gap: 10px;       /* some spacing between fields */
       margin-bottom: 10px;
     }
+    /* Each product input is flexible but can also adapt to smaller screens */
+    .product-group input {
+      flex: 1 1 100px; /* at least 100px wide, can grow to fill space */
+      min-width: 0;    /* ensures flex item can shrink if needed */
+    }
+
     button {
       background-color: #445e00;
       color: #fff;
@@ -61,19 +81,23 @@
     button:hover {
       opacity: 0.9;
     }
+
     #status {
       margin-top: 15px;
       font-weight: bold;
     }
-    /* Archive container */
+
+    /* Archive container also responsive */
     .archive-container {
-      width: 550px;
+      width: 90%;
+      max-width: 550px;
       background-color: #fff;
       margin: 0 auto 30px auto;
       padding: 20px;
       border-radius: 8px;
       text-align: left;
     }
+
     .archive-list ul {
       list-style-type: none;
       padding-left: 0;
@@ -86,9 +110,8 @@
 <body>
 
   <header>
-    <!-- Make sure benaks-logo.png is in the same folder as index.html -->
     <img src="benaks-logo.png" alt="Benaks Logo" />
-    <h1>Arve generaator - Koeratoit.com + Arhiiv</h1>
+    <h1>Arve Vorm (Dynamic + Mobile)</h1>
   </header>
 
   <!-- Main form container -->
@@ -131,7 +154,7 @@
     <p id="status"></p>
   </div>
 
-  <!-- Archive container below -->
+  <!-- Archive container for listing archived PDFs (optional) -->
   <div class="archive-container">
     <h2>Arhiiv</h2>
     <div id="archive" class="archive-list">Laen arhiivi...</div>
@@ -149,21 +172,22 @@
       document.getElementById('products').appendChild(div);
     }
 
-    // On page load, ensure we have 1 product row + load archive
-    window.onload = () => {
+    // Ensure at least 1 product row on load
+    window.addEventListener('DOMContentLoaded', () => {
       if (document.querySelectorAll('.product-group').length === 0) {
         addProduct();
       }
-      loadArchives();
-    };
+      loadArchives(); // if you have the list-archives function
+    });
 
     const form = document.getElementById('invoiceForm');
     const statusMsg = document.getElementById('status');
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       statusMsg.textContent = "Saadan arvet...";
 
-      // Collect product data
+      // Collect product rows
       const productGroups = document.querySelectorAll('.product-group');
       const products = [];
       productGroups.forEach(group => {
@@ -190,32 +214,34 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
         });
+
         if (!response.ok) {
           const err = await response.json();
           throw new Error(err.error);
         }
-
         statusMsg.textContent = "Arve saadetud ja arhiveeritud!";
         form.reset();
         document.getElementById('products').innerHTML = '';
-        addProduct(); // re-add empty row
-
-        loadArchives(); // refresh archive after new invoice
+        addProduct();
+        loadArchives(); // refresh archive if needed
       } catch (err) {
         statusMsg.textContent = "Viga: " + err.message;
       }
     });
 
-    // Load archived PDFs from your Invoices folder
+    // If you have a list-archives function
     async function loadArchives() {
       const archiveDiv = document.getElementById('archive');
+      if (!archiveDiv) return; // safety check if no archive container
       archiveDiv.textContent = 'Laen arhiivi...';
+
       try {
-        const response = await fetch('/.netlify/functions/list-archives');
-        if (!response.ok) {
+        const resp = await fetch('/.netlify/functions/list-archives');
+        if (!resp.ok) {
           throw new Error('Could not load archives');
         }
-        const files = await response.json();
+        const files = await resp.json();
+
         if (files.length === 0) {
           archiveDiv.textContent = 'Pole veel ühtegi arvet.';
           return;
@@ -223,14 +249,9 @@
 
         let html = '<ul>';
         files.forEach(file => {
-          html += `
-            <li>
-              <a href="${file.webViewLink}" target="_blank">${file.name}</a>
-            </li>
-          `;
+          html += `<li><a href="${file.webViewLink}" target="_blank">${file.name}</a></li>`;
         });
         html += '</ul>';
-
         archiveDiv.innerHTML = html;
       } catch (err) {
         archiveDiv.textContent = 'Viga arhiivi laadimisel: ' + err.message;
