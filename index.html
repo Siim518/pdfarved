@@ -31,12 +31,13 @@
     /* Container for the form */
     .container {
       background-color: #fff;
-      max-width: 600px;
-      margin: 0 auto 30px auto; /* center horizontally, add spacing at bottom */
+      /* increased from 600px to 750px (~25% bigger) */
+      max-width: 750px;
+      margin: 0 auto 30px auto; 
       padding: 20px;
       border-radius: 8px;
-      display: inline-block; /* so text-align: center from body still applies inside */
-      text-align: left;      /* left-align the form fields and labels inside */
+      display: inline-block;
+      text-align: left;
     }
 
     /* Form fields styling */
@@ -85,7 +86,6 @@
 <body>
 
   <header>
-    <!-- Make sure the file name exactly matches "benaks-logo.png" in the same folder as index.html -->
     <img src="benaks-logo.png" alt="Benaks Logo" />
     <h1>Arve Vorm (Dynamic Products)</h1>
   </header>
@@ -187,7 +187,7 @@
       }
     });
 
-    // Just in case user refreshes, ensure there's always 1 product row
+    // Always ensure we have 1 product row
     window.onload = () => {
       if (document.querySelectorAll('.product-group').length === 0) {
         addProduct();
