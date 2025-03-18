@@ -4,36 +4,39 @@
   <meta charset="UTF-8" />
   <title>Arve Generator - Dynamic Products</title>
   <style>
-    /* Overall page background */
+    /* Overall page background and centering */
     body {
       background-color: #f8e8d5;
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
+      text-align: center; /* center child elements by default */
     }
 
-    /* Header with logo + heading side by side */
+    /* Header area */
     header {
-      display: flex;
-      align-items: center;
-      padding: 10px 20px;
+      margin-top: 20px;
+      margin-bottom: 20px;
     }
     header img {
       width: 100px;
       height: auto;
-      margin-right: 20px;
+      display: block;
+      margin: 0 auto; /* center the logo */
     }
     header h1 {
-      margin: 0;
+      margin: 10px 0 0 0; /* small spacing above/below */
     }
 
-    /* Center a content area */
+    /* Container for the form */
     .container {
       background-color: #fff;
       max-width: 600px;
-      margin: 20px auto;
+      margin: 0 auto 30px auto; /* center horizontally, add spacing at bottom */
       padding: 20px;
       border-radius: 8px;
+      display: inline-block; /* so text-align: center from body still applies inside */
+      text-align: left;      /* left-align the form fields and labels inside */
     }
 
     /* Form fields styling */
@@ -69,7 +72,7 @@
       margin-top: 10px;
     }
     button:hover {
-      opacity: 0.9; /* simple hover effect */
+      opacity: 0.9;
     }
 
     /* Status message */
@@ -81,13 +84,12 @@
 </head>
 <body>
 
-  <!-- Top header with logo + heading -->
   <header>
+    <!-- Make sure the file name exactly matches "benaks-logo.png" in the same folder as index.html -->
     <img src="benaks-logo.png" alt="Benaks Logo" />
     <h1>Arve Vorm (Dynamic Products)</h1>
   </header>
 
-  <!-- Main container for the form -->
   <div class="container">
     <form id="invoiceForm">
       <label>Arve nr:</label>
@@ -176,7 +178,6 @@
 
       if (response.ok) {
         status.textContent = "Arve saadetud ja arhiveeritud!";
-        // Reset form
         form.reset();
         document.getElementById('products').innerHTML = '';
         addProduct(); // Re-add single empty row
@@ -185,6 +186,13 @@
         status.textContent = "Viga: " + err.error;
       }
     });
+
+    // Just in case user refreshes, ensure there's always 1 product row
+    window.onload = () => {
+      if (document.querySelectorAll('.product-group').length === 0) {
+        addProduct();
+      }
+    };
   </script>
 
 </body>
