@@ -1,6 +1,5 @@
 const PDFDocument = require('pdfkit');
 const nodemailer = require('nodemailer');
-const { google } = require('googleapis');
 const fs = require('fs');
 const path = require('path');
 
@@ -26,7 +25,9 @@ exports.handler = async (event) => {
         const logoPath = path.join(__dirname, 'benaks-logo.png');
         doc.image(logoPath, 50, 50, { width: 100 });
 
-        // Seller Info
+        // ✅ Here we switch to a built-in font (Times-Roman)
+        doc.font('Times-Roman');
+
         doc.fontSize(10).text('Benaks OÜ', 400, 50)
             .text('Reg.nr. 12069824')
             .text('KMKR nr. EE101433055')
