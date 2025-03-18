@@ -2,18 +2,16 @@
 <html lang="et">
 <head>
   <meta charset="UTF-8" />
-  <title>Arve Generator - Dynamic Products</title>
+  <title>Arve Generator - Wider Form</title>
   <style>
-    /* Overall page background and centering */
     body {
       background-color: #f8e8d5;
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
-      text-align: center; /* center child elements by default */
+      text-align: center;
     }
 
-    /* Header area */
     header {
       margin-top: 20px;
       margin-bottom: 20px;
@@ -22,25 +20,22 @@
       width: 100px;
       height: auto;
       display: block;
-      margin: 0 auto; /* center the logo */
+      margin: 0 auto;
     }
     header h1 {
-      margin: 10px 0 0 0; /* small spacing above/below */
+      margin: 10px 0 0 0;
     }
 
-    /* Container for the form */
+    /* Force the container to be 550px wide */
     .container {
       background-color: #fff;
-      /* increased from 600px to 750px (~25% bigger) */
-      max-width: 750px;
-      margin: 0 auto 30px auto; 
+      width: 550px; /* You can tweak this number */
+      margin: 20px auto 30px auto;
       padding: 20px;
       border-radius: 8px;
-      display: inline-block;
       text-align: left;
     }
 
-    /* Form fields styling */
     label {
       display: block;
       margin-top: 10px;
@@ -51,17 +46,14 @@
       display: block;
       margin-bottom: 10px;
       width: 100%;
-      max-width: 300px;
       padding: 6px;
       font-size: 14px;
     }
 
-    /* Product group row spacing */
     .product-group {
       margin-bottom: 10px;
     }
 
-    /* Buttons */
     button {
       background-color: #445e00;
       color: #fff;
@@ -76,7 +68,6 @@
       opacity: 0.9;
     }
 
-    /* Status message */
     #status {
       margin-top: 15px;
       font-weight: bold;
@@ -93,36 +84,35 @@
   <div class="container">
     <form id="invoiceForm">
       <label>Arve nr:</label>
-      <input type="text" name="arve_nr" autocomplete="off" />
+      <input type="text" name="arve_nr" autocomplete="off">
 
       <label>Saaja nimi:</label>
-      <input type="text" name="saaja_nimi" autocomplete="name" />
+      <input type="text" name="saaja_nimi" autocomplete="name">
 
       <label>Saaja firma:</label>
-      <input type="text" name="saaja_firma" autocomplete="organization" />
+      <input type="text" name="saaja_firma" autocomplete="organization">
 
       <label>Saaja reg.nr:</label>
-      <input type="text" name="saaja_regnr" autocomplete="off" />
+      <input type="text" name="saaja_regnr" autocomplete="off">
 
       <label>Saaja KMKR:</label>
-      <input type="text" name="saaja_kmkr" autocomplete="off" />
+      <input type="text" name="saaja_kmkr" autocomplete="off">
 
       <label>Saaja aadress:</label>
       <textarea name="saaja_aadress" rows="2" autocomplete="street-address"></textarea>
 
       <h3>Tooted:</h3>
       <div id="products">
-        <!-- Start with 1 row by default -->
         <div class="product-group">
-          <input type="text" name="product_name" placeholder="Nimi" required />
-          <input type="number" name="product_qty" placeholder="Kogus" required />
-          <input type="number" step="0.01" name="product_price_gross" placeholder="Hind (koos KM)" required />
+          <input type="text" name="product_name" placeholder="Nimi" required>
+          <input type="number" name="product_qty" placeholder="Kogus" required>
+          <input type="number" step="0.01" name="product_price_gross" placeholder="Hind (koos KM)" required>
         </div>
       </div>
       <button type="button" onclick="addProduct()">Lisa toode</button>
 
       <h3>Saaja e-mail:</h3>
-      <input type="email" name="email" autocomplete="email" required />
+      <input type="email" name="email" autocomplete="email" required>
 
       <button type="submit">Saada arve PDF</button>
     </form>
@@ -135,9 +125,9 @@
       const div = document.createElement('div');
       div.classList.add('product-group');
       div.innerHTML = `
-        <input type="text" name="product_name" placeholder="Nimi" required />
-        <input type="number" name="product_qty" placeholder="Kogus" required />
-        <input type="number" step="0.01" name="product_price_gross" placeholder="Hind (koos KM)" required />
+        <input type="text" name="product_name" placeholder="Nimi" required>
+        <input type="number" name="product_qty" placeholder="Kogus" required>
+        <input type="number" step="0.01" name="product_price_gross" placeholder="Hind (koos KM)" required>
       `;
       document.getElementById('products').appendChild(div);
     }
@@ -149,13 +139,12 @@
       e.preventDefault();
       status.textContent = "Saadan arvet...";
 
-      // Collect product rows
       const productGroups = document.querySelectorAll('.product-group');
       const products = [];
       productGroups.forEach(group => {
-        const name = group.querySelector('input[name="product_name"]').value.trim();
-        const qty = parseFloat(group.querySelector('input[name="product_qty"]').value);
-        const priceGross = parseFloat(group.querySelector('input[name="product_price_gross"]').value);
+        const name = group.querySelector('input[name=\"product_name\"]').value.trim();
+        const qty = parseFloat(group.querySelector('input[name=\"product_qty\"]').value);
+        const priceGross = parseFloat(group.querySelector('input[name=\"product_price_gross\"]').value);
         products.push({ name, qty, price_gross: priceGross });
       });
 
@@ -180,20 +169,18 @@
         status.textContent = "Arve saadetud ja arhiveeritud!";
         form.reset();
         document.getElementById('products').innerHTML = '';
-        addProduct(); // Re-add single empty row
+        addProduct();
       } else {
         const err = await response.json();
         status.textContent = "Viga: " + err.error;
       }
     });
 
-    // Always ensure we have 1 product row
     window.onload = () => {
       if (document.querySelectorAll('.product-group').length === 0) {
         addProduct();
       }
     };
   </script>
-
 </body>
 </html>
