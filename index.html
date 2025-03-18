@@ -1,0 +1,62 @@
+<!-- invoices-app/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice Generator</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        input, textarea { display: block; margin-bottom: 10px; width: 300px; }
+        button { padding: 10px 20px; }
+    </style>
+</head>
+<body>
+    <h1>Create Invoice</h1>
+    <form id="invoiceForm">
+        <label>Customer Name:</label>
+        <input type="text" name="name" required>
+
+        <label>Customer Email:</label>
+        <input type="email" name="email" required>
+
+        <label>Product Details:</label>
+        <textarea name="details" placeholder="e.g. Dog Food 10kg - 25 EUR" required></textarea>
+
+        <label>Total Amount (EUR):</label>
+        <input type="number" name="amount" required>
+
+        <button type="submit">Generate Invoice</button>
+    </form>
+
+    <p id="status"></p>
+
+    <script>
+        const form = document.getElementById('invoiceForm');
+        const status = document.getElementById('status');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            status.textContent = "Generating invoice...";
+
+            const data = {
+                name: form.name.value,
+                email: form.email.value,
+                details: form.details.value,
+                amount: form.amount.value
+            };
+
+            const response = await fetch('/.netlify/functions/create-invoice', {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                status.textContent = "Invoice sent and archived!";
+                form.reset();
+            } else {
+                status.textContent = "Error: Could not send invoice.";
+            }
+        });
+    </script>
+</body>
+</html>
