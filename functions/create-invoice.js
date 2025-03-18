@@ -51,10 +51,10 @@ exports.handler = async (event) => {
     doc.moveDown(2);
 
     // TABLE HEADER
-    doc.fontSize(10).text('Nimi', 50, doc.y, { width: 200 })
-      .text('Kogus', 260, doc.y, { width: 40 })
-      .text('Hind ilma KM', 320, doc.y, { width: 80 })
-      .text('Hind koos KM', 420, doc.y, { width: 80 });
+    doc.fontSize(10).text('Nimi', 50, doc.y, { width: 170 })
+      .text('Kogus', 220, doc.y, { width: 40 })
+      .text('Hind ilma KM', 280, doc.y, { width: 100 })
+      .text('Hind koos KM', 390, doc.y, { width: 100 });
 
     // Horizontal line
     doc.moveTo(50, doc.y + 5).lineTo(500, doc.y + 5).stroke();
@@ -65,24 +65,44 @@ exports.handler = async (event) => {
 
     // For each product
     products.forEach(p => {
+      // 1) Net price for one item
       const netPriceEach = p.price_gross / 1.22;  // remove 22% VAT
+      // 2) net * qty
       const lineNet = netPriceEach * p.qty;
+      // 3) gross = user input * qty
       const lineGross = p.price_gross * p.qty;
 
       totalNet += lineNet;
       totalGross += lineGross;
 
-      doc.text(p.name, 50, doc.y, { width: 200 })
-         .text(p.qty.toString(), 260, doc.y, { width: 40 })
-         .text(lineNet.toFixed(2) + ' €', 320, doc.y, { width: 80 })
-         .text(lineGross.toFixed(2) + ' €', 420, doc.y, { width: 80 });
+      doc.text(p.name, 50, doc.y, { width: 170 })
+         .text(p.qty.toString(), 220, doc.y, { width: 40 })
+         .text(lineNet.toFixed(2) + ' €', 280, doc.y, { width: 100 })
+         .text(lineGross.toFixed(2) + ' €', 390, doc.y, { width: 100 });
 
       doc.moveDown(0.5);
     });
 
-    const vat = totalGross - totalNet; // should be totalNet * 0.22
+    const vat = totalGross - totalNet; // or totalNet * 0.22
 
-    doc.moveDown(1);
+    //////////////////////////////////////////////////////////////////////////
+    // 1) 20pt top spacing
+    //////////////////////////////////////////////////////////////////////////
+    doc.moveDown(2);
+
+    //////////////////////////////////////////////////////////////////////////
+    // 2) Draw line
+    //////////////////////////////////////////////////////////////////////////
+    doc.moveTo(50, doc.y)
+       .lineTo(500, doc.y)
+       .stroke();
+
+    //////////////////////////////////////////////////////////////////////////
+    // 3) 20pt bottom spacing
+    //////////////////////////////////////////////////////////////////////////
+    doc.moveDown(2);
+
+    // Totals
     doc.text(`Kokku ilma KM: ${totalNet.toFixed(2)} €`);
     doc.text(`KM (22%): ${vat.toFixed(2)} €`);
     doc.text(`Kokku koos KM: ${totalGross.toFixed(2)} €`);
@@ -97,7 +117,7 @@ exports.handler = async (event) => {
     doc.end();
     await new Promise(resolve => writeStream.on('finish', resolve));
 
-    // Send Email
+    // Email
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {

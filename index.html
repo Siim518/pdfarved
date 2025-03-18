@@ -33,7 +33,7 @@
 
     <h3>Tooted:</h3>
     <div id="products">
-      <!-- We start with ONE row by default -->
+      <!-- Start with 1 row by default -->
       <div class="product-group">
         <input type="text" name="product_name" placeholder="Nimi" required>
         <input type="number" name="product_qty" placeholder="Kogus" required>
@@ -51,7 +51,6 @@
   <p id="status"></p>
 
   <script>
-    // Add dynamic product row
     function addProduct() {
       const div = document.createElement('div');
       div.classList.add('product-group');
@@ -77,11 +76,7 @@
         const name = group.querySelector('input[name="product_name"]').value.trim();
         const qty = parseFloat(group.querySelector('input[name="product_qty"]').value);
         const priceGross = parseFloat(group.querySelector('input[name="product_price_gross"]').value);
-        products.push({
-          name,
-          qty,
-          price_gross: priceGross
-        });
+        products.push({ name, qty, price_gross: priceGross });
       });
 
       const data = {
