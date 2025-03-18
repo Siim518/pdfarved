@@ -1,48 +1,93 @@
-<!-- invoices-app/index.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="et">
 <head>
     <meta charset="UTF-8">
-    <title>Invoice Generator</title>
+    <title>Arve Generator</title>
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; }
         input, textarea { display: block; margin-bottom: 10px; width: 300px; }
         button { padding: 10px 20px; }
+        .product-group { margin-bottom: 10px; }
     </style>
 </head>
 <body>
-    <h1>Create Invoice</h1>
+    <h1>Arve Vorm</h1>
     <form id="invoiceForm">
-        <label>Customer Name:</label>
-        <input type="text" name="name" required>
+        <label>Arve nr:</label>
+        <input type="text" name="arve_nr" required>
 
-        <label>Customer Email:</label>
+        <label>Saaja nimi:</label>
+        <input type="text" name="saaja_nimi" required>
+
+        <label>Saaja firma:</label>
+        <input type="text" name="saaja_firma">
+
+        <label>Saaja reg.nr:</label>
+        <input type="text" name="saaja_regnr">
+
+        <label>Saaja KMKR:</label>
+        <input type="text" name="saaja_kmkr">
+
+        <label>Saaja aadress:</label>
+        <textarea name="saaja_aadress" required></textarea>
+
+        <h3>Tooted:</h3>
+        <div id="products">
+            <div class="product-group">
+                <input type="text" name="product_name" placeholder="Toode" required>
+                <input type="number" name="product_qty" placeholder="Kogus" required>
+                <input type="number" step="0.01" name="product_price" placeholder="Hind" required>
+            </div>
+        </div>
+        <button type="button" onclick="addProduct()">Lisa toode</button>
+
+        <h3>Saaja e-mail:</h3>
         <input type="email" name="email" required>
 
-        <label>Product Details:</label>
-        <textarea name="details" placeholder="e.g. Dog Food 10kg - 25 EUR" required></textarea>
-
-        <label>Total Amount (EUR):</label>
-        <input type="number" name="amount" required>
-
-        <button type="submit">Generate Invoice</button>
+        <button type="submit">Saada arve PDF</button>
     </form>
 
     <p id="status"></p>
 
     <script>
+        function addProduct() {
+            const div = document.createElement('div');
+            div.classList.add('product-group');
+            div.innerHTML = `
+                <input type="text" name="product_name" placeholder="Toode" required>
+                <input type="number" name="product_qty" placeholder="Kogus" required>
+                <input type="number" step="0.01" name="product_price" placeholder="Hind" required>
+            `;
+            document.getElementById('products').appendChild(div);
+        }
+
         const form = document.getElementById('invoiceForm');
         const status = document.getElementById('status');
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            status.textContent = "Generating invoice...";
+            status.textContent = "Saadan arvet...";
+
+            // Collect products
+            const productGroups = document.querySelectorAll('.product-group');
+            const products = [];
+            productGroups.forEach(group => {
+                products.push({
+                    name: group.querySelector('input[name="product_name"]').value,
+                    qty: parseInt(group.querySelector('input[name="product_qty"]').value),
+                    unit_price: parseFloat(group.querySelector('input[name="product_price"]').value)
+                });
+            });
 
             const data = {
-                name: form.name.value,
+                arve_nr: form.arve_nr.value,
+                saaja_nimi: form.saaja_nimi.value,
+                saaja_firma: form.saaja_firma.value,
+                saaja_regnr: form.saaja_regnr.value,
+                saaja_kmkr: form.saaja_kmkr.value,
+                saaja_aadress: form.saaja_aadress.value,
                 email: form.email.value,
-                details: form.details.value,
-                amount: form.amount.value
+                products: products
             };
 
             const response = await fetch('/.netlify/functions/create-invoice', {
@@ -51,10 +96,12 @@
             });
 
             if (response.ok) {
-                status.textContent = "Invoice sent and archived!";
+                status.textContent = "Arve saadetud ja arhiveeritud!";
                 form.reset();
+                document.getElementById('products').innerHTML = ''; // Clear product inputs
+                addProduct(); // Add empty product row again
             } else {
-                status.textContent = "Error: Could not send invoice.";
+                status.textContent = "Viga: Arvet ei saadetud!";
             }
         });
     </script>
