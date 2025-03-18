@@ -2,7 +2,7 @@
 <html lang="et">
 <head>
   <meta charset="UTF-8" />
-  <title>Arve Generator - Wider Form</title>
+  <title>Arve Generator - Dynamic Products + Arhiiv</title>
   <style>
     body {
       background-color: #f8e8d5;
@@ -11,7 +11,6 @@
       padding: 0;
       text-align: center;
     }
-
     header {
       margin-top: 20px;
       margin-bottom: 20px;
@@ -25,17 +24,14 @@
     header h1 {
       margin: 10px 0 0 0;
     }
-
-    /* Force the container to be 550px wide */
     .container {
       background-color: #fff;
-      width: 550px; /* You can tweak this number */
+      width: 550px;
       margin: 20px auto 30px auto;
       padding: 20px;
       border-radius: 8px;
       text-align: left;
     }
-
     label {
       display: block;
       margin-top: 10px;
@@ -49,11 +45,9 @@
       padding: 6px;
       font-size: 14px;
     }
-
     .product-group {
       margin-bottom: 10px;
     }
-
     button {
       background-color: #445e00;
       color: #fff;
@@ -67,20 +61,37 @@
     button:hover {
       opacity: 0.9;
     }
-
     #status {
       margin-top: 15px;
       font-weight: bold;
+    }
+    /* Archive container */
+    .archive-container {
+      width: 550px;
+      background-color: #fff;
+      margin: 0 auto 30px auto;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: left;
+    }
+    .archive-list ul {
+      list-style-type: none;
+      padding-left: 0;
+    }
+    .archive-list li {
+      margin-bottom: 8px;
     }
   </style>
 </head>
 <body>
 
   <header>
+    <!-- Make sure benaks-logo.png is in the same folder as index.html -->
     <img src="benaks-logo.png" alt="Benaks Logo" />
-    <h1>Arve Vorm (Dynamic Products)</h1>
+    <h1>Arve Vorm (Dynamic Products + Arhiiv)</h1>
   </header>
 
+  <!-- Main form container -->
   <div class="container">
     <form id="invoiceForm">
       <label>Arve nr:</label>
@@ -120,6 +131,12 @@
     <p id="status"></p>
   </div>
 
+  <!-- Archive container below -->
+  <div class="archive-container">
+    <h2>Arhiiv</h2>
+    <div id="archive" class="archive-list">Laen arhiivi...</div>
+  </div>
+
   <script>
     function addProduct() {
       const div = document.createElement('div');
@@ -132,13 +149,21 @@
       document.getElementById('products').appendChild(div);
     }
 
-    const form = document.getElementById('invoiceForm');
-    const status = document.getElementById('status');
+    // On page load, ensure we have 1 product row + load archive
+    window.onload = () => {
+      if (document.querySelectorAll('.product-group').length === 0) {
+        addProduct();
+      }
+      loadArchives();
+    };
 
+    const form = document.getElementById('invoiceForm');
+    const statusMsg = document.getElementById('status');
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      status.textContent = "Saadan arvet...";
+      statusMsg.textContent = "Saadan arvet...";
 
+      // Collect product data
       const productGroups = document.querySelectorAll('.product-group');
       const products = [];
       productGroups.forEach(group => {
@@ -159,28 +184,58 @@
         products
       };
 
-      const response = await fetch('/.netlify/functions/create-invoice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
+      try {
+        const response = await fetch('/.netlify/functions/create-invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error);
+        }
 
-      if (response.ok) {
-        status.textContent = "Arve saadetud ja arhiveeritud!";
+        statusMsg.textContent = "Arve saadetud ja arhiveeritud!";
         form.reset();
         document.getElementById('products').innerHTML = '';
-        addProduct();
-      } else {
-        const err = await response.json();
-        status.textContent = "Viga: " + err.error;
+        addProduct(); // re-add empty row
+
+        loadArchives(); // refresh archive after new invoice
+      } catch (err) {
+        statusMsg.textContent = "Viga: " + err.message;
       }
     });
 
-    window.onload = () => {
-      if (document.querySelectorAll('.product-group').length === 0) {
-        addProduct();
+    // Load archived PDFs from your Invoices folder
+    async function loadArchives() {
+      const archiveDiv = document.getElementById('archive');
+      archiveDiv.textContent = 'Laen arhiivi...';
+      try {
+        const response = await fetch('/.netlify/functions/list-archives');
+        if (!response.ok) {
+          throw new Error('Could not load archives');
+        }
+        const files = await response.json();
+        if (files.length === 0) {
+          archiveDiv.textContent = 'Pole veel ühtegi arvet.';
+          return;
+        }
+
+        let html = '<ul>';
+        files.forEach(file => {
+          html += `
+            <li>
+              <a href="${file.webViewLink}" target="_blank">${file.name}</a>
+            </li>
+          `;
+        });
+        html += '</ul>';
+
+        archiveDiv.innerHTML = html;
+      } catch (err) {
+        archiveDiv.textContent = 'Viga arhiivi laadimisel: ' + err.message;
       }
-    };
+    }
   </script>
 </body>
 </html>
