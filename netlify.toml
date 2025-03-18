@@ -4,24 +4,10 @@
 
 [functions]
   node_bundler = "esbuild"
-  # 🟢 Include logo, fonts, and any static PDF assets you might need in future
   included_files = [
-    "functions/benaks-logo.png",
-    "node_modules/pdfkit/js/data/**",
-    "node_modules/pdfkit/js/fonts/**"
+    "functions/benaks-logo.png"
   ]
 
 [dev]
   functions = "functions"
   publish = "."
-
-# Optional: Enable edge cache control (static files will cache well)
-[[headers]]
-  for = "/*.js"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/*.png"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"

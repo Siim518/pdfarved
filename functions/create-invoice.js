@@ -18,7 +18,7 @@ exports.handler = async (event) => {
         }
 
         const doc = new PDFDocument({ margin: 50 });
-        const fileName = `invoice-${arve_nr}.pdf`;
+        const fileName = `invoice-${arve_nr || 'no-number'}.pdf`;
         const filePath = `/tmp/${fileName}`;
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
@@ -26,6 +26,7 @@ exports.handler = async (event) => {
         const logoPath = path.join(__dirname, 'benaks-logo.png');
         doc.image(logoPath, 50, 50, { width: 100 });
 
+        // Seller Info
         doc.fontSize(10).text('Benaks OÜ', 400, 50)
             .text('Reg.nr. 12069824')
             .text('KMKR nr. EE101433055')
@@ -34,22 +35,20 @@ exports.handler = async (event) => {
             .text('Hoburaua tee 8a, Randvere küla, Viimsi vald, Harju maakond, 74016');
 
         doc.moveDown(2);
-        doc.fontSize(12).text(`ARVE NR: ${arve_nr}`);
+        doc.fontSize(12).text(`ARVE NR: ${arve_nr || '-'}`);
         doc.moveDown(1);
 
-        doc.fontSize(10).text(`Saaja nimi: ${saaja_nimi}`)
-            .text(`Saaja firma: ${saaja_firma}`)
-            .text(`Saaja reg.nr: ${saaja_regnr}`)
-            .text(`Saaja KMKR: ${saaja_kmkr}`)
-            .text(`Saaja aadress: ${saaja_aadress}`);
+        doc.fontSize(10).text(`Saaja nimi: ${saaja_nimi || '-'}`)
+            .text(`Saaja firma: ${saaja_firma || '-'}`)
+            .text(`Saaja reg.nr: ${saaja_regnr || '-'}`)
+            .text(`Saaja KMKR: ${saaja_kmkr || '-'}`)
+            .text(`Saaja aadress: ${saaja_aadress || '-'}`);
 
         doc.moveDown(2);
 
         doc.fontSize(10).text('Tooted:', 50, doc.y);
         doc.moveDown(0.5);
-        doc.fontSize(10).text(products_text, {
-            width: 500
-        });
+        doc.fontSize(10).text(products_text, { width: 500 });
 
         doc.moveDown(2);
         doc.text('Maksetähtaeg: 7 päeva', { align: 'left' });
@@ -59,7 +58,6 @@ exports.handler = async (event) => {
         doc.fontSize(9).text('Benaks OÜ IBAN: EE832200221051880171', { align: 'left' });
 
         doc.end();
-
         await new Promise(resolve => writeStream.on('finish', resolve));
 
         const transporter = nodemailer.createTransport({
@@ -73,7 +71,7 @@ exports.handler = async (event) => {
         await transporter.sendMail({
             from: `Benaks OÜ <${process.env.GMAIL_USER}>`,
             to: email,
-            subject: `Arve ${arve_nr} - Benaks OÜ`,
+            subject: `Arve ${arve_nr || '-'} - Benaks OÜ`,
             text: 'Arve on lisatud manusena.',
             attachments: [{ filename: fileName, path: filePath }]
         });
