@@ -20,23 +20,22 @@ exports.handler = async (event) => {
       throw new Error('No email provided');
     }
 
-    // 2) Create PDF document
+    // 2) Create PDF
     const doc = new PDFDocument({ margin: 50 });
     const fileName = `invoice-${arve_nr || 'no-number'}.pdf`;
     const filePath = `/tmp/${fileName}`;
     const writeStream = fs.createWriteStream(filePath);
     doc.pipe(writeStream);
 
-    // 3) Two-column layout: Left column = Logo + seller info, Right column = ARVE + customer info
-
-    // 3A) Left column
+    // 3) Place the logo top-left
     const logoPath = path.join(__dirname, 'benaks-logo.png');
-    // Place the logo top-left
     doc.image(logoPath, 50, 50, { width: 80 });
 
-    // Then seller info below the logo (left column)
-    let sellerX = 50;
-    let sellerY = 140;
+    // We'll start both columns at y=140 so they're on the same horizontal line
+    const topOfColumns = 140;
+
+    // 3A) Left column (Seller info) at x=50, y=140
+    const sellerX = 50;
     doc.fontSize(10);
 
     const sellerInfo = `Benaks OÜ
@@ -47,76 +46,83 @@ E-post: benaksinfo@gmail.com
 Hoburaua tee 8a, Randvere küla,
 Viimsi vald, Harju maakond, 74016`;
 
-    // Print multiline text in left column
-    doc.text(sellerInfo, sellerX, sellerY, { width: 200 });
-    const finalSellerY = doc.y; // store end y for left column
+    doc.text(sellerInfo, sellerX, topOfColumns, { width: 200 });
+    const finalSellerY = doc.y; // bottom of seller column
 
-    // 3B) Right column for invoice + customer info
-    const rightColX = 300;
-    let rightColY = 50; // same top as the logo
+    // 3B) Right column (Client info) at x=300, y=140
+    let clientX = 300;
+    let clientY = topOfColumns;
 
-    doc.text(`ARVE NR: ${arve_nr || '-'}`, rightColX, rightColY);
-    rightColY += 14;
-    doc.text(`Saaja nimi: ${saaja_nimi || '-'}`, rightColX, rightColY);
-    rightColY += 14;
-    doc.text(`Saaja firma: ${saaja_firma || '-'}`, rightColX, rightColY);
-    rightColY += 14;
-    doc.text(`Saaja reg.nr: ${saaja_regnr || '-'}`, rightColX, rightColY);
-    rightColY += 14;
-    doc.text(`Saaja KMKR: ${saaja_kmkr || '-'}`, rightColX, rightColY);
-    rightColY += 14;
-    doc.text(`Saaja aadress: ${saaja_aadress || '-'}`, rightColX, rightColY);
-    rightColY += 14;
+    doc.text(`ARVE NR: ${arve_nr || '-'}`, clientX, clientY);  
+    clientY += 14;
+    doc.text(`Saaja nimi: ${saaja_nimi || '-'}`, clientX, clientY);
+    clientY += 14;
+    doc.text(`Saaja firma: ${saaja_firma || '-'}`, clientX, clientY);
+    clientY += 14;
+    doc.text(`Saaja reg.nr: ${saaja_regnr || '-'}`, clientX, clientY);
+    clientY += 14;
+    doc.text(`Saaja KMKR: ${saaja_kmkr || '-'}`, clientX, clientY);
+    clientY += 14;
+    doc.text(`Saaja aadress: ${saaja_aadress || '-'}`, clientX, clientY);
+    clientY += 14;
 
-    const finalCustomerY = rightColY;
+    const finalClientY = clientY; // bottom of client column
 
-    // 4) Move below BOTH columns
-    const endOfColumns = Math.max(finalSellerY, finalCustomerY);
+    // 4) Move below both columns
+    const endOfColumns = Math.max(finalSellerY, finalClientY);
     doc.y = endOfColumns + 30;
 
-    // 5) Product Table with net/gross columns
-    doc.fontSize(10).text('Nimi', 50, doc.y, { width: 150 });
-    doc.text('Kogus', 210, doc.y, { width: 50 });
-    doc.text('Hind ilma KM', 270, doc.y, { width: 100 });
-    doc.text('Hind koos KM', 390, doc.y, { width: 100 });
+    // 5) Print table headers on one baseline
+    const headingY = doc.y;
+    // Nimi  (x=50)
+    doc.text('Nimi', 50, headingY, { width: 150 });
+    // Kogus (x=210)
+    doc.text('Kogus', 210, headingY, { width: 50 });
+    // Hind ilma KM (x=270)
+    doc.text('Hind ilma KM', 270, headingY, { width: 100 });
+    // Hind koos KM (x=390)
+    doc.text('Hind koos KM', 390, headingY, { width: 100 });
 
-    // line below header
-    doc.moveTo(50, doc.y + 12)
-       .lineTo(500, doc.y + 12)
+    // Draw line below headers
+    doc.moveTo(50, headingY + 12)
+       .lineTo(500, headingY + 12)
        .stroke();
 
-    doc.moveDown(1);
+    // Move down to start listing products
+    doc.y = headingY + 20;
 
     let totalNet = 0;
     let totalGross = 0;
 
+    // 6) List products
     products.forEach((p) => {
-      // net price if 22% vat
-      const netPriceEach = p.price_gross / 1.22;
-      const lineNet = netPriceEach * p.qty;
+      const rowY = doc.y;
+
+      // Calculate net price if 22% vat
+      const netEach = p.price_gross / 1.22;
+      const lineNet = netEach * p.qty;
       const lineGross = p.price_gross * p.qty;
 
       totalNet += lineNet;
       totalGross += lineGross;
 
-      // print row
-      const rowY = doc.y;
+      // Fill row
       doc.text(p.name, 50, rowY, { width: 150 });
       doc.text(p.qty.toString(), 210, rowY, { width: 50 });
       doc.text(lineNet.toFixed(2) + ' €', 270, rowY, { width: 100 });
       doc.text(lineGross.toFixed(2) + ' €', 390, rowY, { width: 100 });
-      doc.moveDown(1);
+
+      doc.moveDown(1); // move to next line
     });
 
+    // 7) Totals
     const vat = totalGross - totalNet;
 
-    // 6) Draw a line + spacing
     doc.moveDown(1);
     const lineY = doc.y;
     doc.moveTo(50, lineY).lineTo(500, lineY).stroke();
     doc.moveDown(1);
 
-    // 7) Totals
     doc.text(`Kokku ilma KM: ${totalNet.toFixed(2)} €`);
     doc.text(`KM (22%): ${vat.toFixed(2)} €`);
     doc.text(`Kokku koos KM: ${totalGross.toFixed(2)} €`);
@@ -126,15 +132,15 @@ Viimsi vald, Harju maakond, 74016`;
     doc.text('Viivis: 0.05% päevas');
 
     doc.moveDown(2);
-    doc.fontSize(9).text('Benaks OÜ IBAN: EE832200221051880171');
+    doc.fontSize(9)
+       .text('Benaks OÜ IBAN: EE832200221051880171');
 
     // 8) Finalize PDF
     doc.end();
     await new Promise(resolve => writeStream.on('finish', resolve));
 
     // 9) Upload to Google Drive folder
-    // If you have a folder named Invoices with ID: "11-WG0xQwc21r_yTuBQXD-IiBNMwf8fXp"
-    const folderId = '11-WG0xQwc21r_yTuBQXD-IiBNMwf8fXp';
+    const folderId = '11-WG0xQwc21r_yTuBQXD-IiBNMwf8fXp'; // <--- your folder ID
     const auth = new google.auth.JWT(
       process.env.GOOGLE_CLIENT_EMAIL,
       null,
@@ -172,7 +178,6 @@ Viimsi vald, Harju maakond, 74016`;
       attachments: [{ filename: fileName, path: filePath }]
     });
 
-    // Done
     return {
       statusCode: 200,
       body: JSON.stringify({ success: true })
