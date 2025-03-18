@@ -7,27 +7,30 @@ exports.handler = async (event) => {
   try {
     const data = JSON.parse(event.body);
 
-    // Fields
     const {
       arve_nr, saaja_nimi, saaja_firma, saaja_regnr, saaja_kmkr, saaja_aadress,
-      products_text, email
+      products, email
     } = data;
 
-    if (!products_text || products_text.trim() === '') {
-      throw new Error('Products text is empty');
+    if (!Array.isArray(products) || products.length === 0) {
+      throw new Error('No products provided');
+    }
+    if (!email) {
+      throw new Error('No email provided');
     }
 
+    // Create doc
     const doc = new PDFDocument({ margin: 50 });
     const fileName = `invoice-${arve_nr || 'no-number'}.pdf`;
     const filePath = `/tmp/${fileName}`;
     const writeStream = fs.createWriteStream(filePath);
     doc.pipe(writeStream);
 
-    // Logo
+    // Add logo
     const logoPath = path.join(__dirname, 'benaks-logo.png');
     doc.image(logoPath, 50, 50, { width: 100 });
 
-    // We'll keep default PDFKit font = Helvetica
+    // Seller info
     doc.fontSize(10).text('Benaks OÜ', 400, 50)
       .text('Reg.nr. 12069824')
       .text('KMKR nr. EE101433055')
@@ -47,9 +50,42 @@ exports.handler = async (event) => {
 
     doc.moveDown(2);
 
-    doc.fontSize(10).text('Tooted:', 50, doc.y);
+    // TABLE HEADER
+    doc.fontSize(10).text('Nimi', 50, doc.y, { width: 200 })
+      .text('Kogus', 260, doc.y, { width: 40 })
+      .text('Hind ilma KM', 320, doc.y, { width: 80 })
+      .text('Hind koos KM', 420, doc.y, { width: 80 });
+
+    // Horizontal line
+    doc.moveTo(50, doc.y + 5).lineTo(500, doc.y + 5).stroke();
     doc.moveDown(0.5);
-    doc.text(products_text, { width: 500 });
+
+    let totalNet = 0;
+    let totalGross = 0;
+
+    // For each product
+    products.forEach(p => {
+      const netPriceEach = p.price_gross / 1.22;  // remove 22% VAT
+      const lineNet = netPriceEach * p.qty;
+      const lineGross = p.price_gross * p.qty;
+
+      totalNet += lineNet;
+      totalGross += lineGross;
+
+      doc.text(p.name, 50, doc.y, { width: 200 })
+         .text(p.qty.toString(), 260, doc.y, { width: 40 })
+         .text(lineNet.toFixed(2) + ' €', 320, doc.y, { width: 80 })
+         .text(lineGross.toFixed(2) + ' €', 420, doc.y, { width: 80 });
+
+      doc.moveDown(0.5);
+    });
+
+    const vat = totalGross - totalNet; // should be totalNet * 0.22
+
+    doc.moveDown(1);
+    doc.text(`Kokku ilma KM: ${totalNet.toFixed(2)} €`);
+    doc.text(`KM (22%): ${vat.toFixed(2)} €`);
+    doc.text(`Kokku koos KM: ${totalGross.toFixed(2)} €`);
 
     doc.moveDown(2);
     doc.text('Maksetähtaeg: 7 päeva', { align: 'left' });
@@ -61,7 +97,7 @@ exports.handler = async (event) => {
     doc.end();
     await new Promise(resolve => writeStream.on('finish', resolve));
 
-    // Send email
+    // Send Email
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {

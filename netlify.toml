@@ -3,9 +3,7 @@
   functions = "functions"
 
 [functions]
-  # Use the older zisi bundler so PDFKit's built-in fonts won't be stripped
   node_bundler = "zisi"
-
   included_files = [
     "functions/benaks-logo.png"
   ]

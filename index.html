@@ -1,81 +1,116 @@
 <!DOCTYPE html>
 <html lang="et">
 <head>
-    <meta charset="UTF-8">
-    <title>Arve Generator</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        input, textarea { display: block; margin-bottom: 10px; width: 300px; }
-        button { padding: 10px 20px; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Arve Generator - Dynamic Products</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    input, textarea { display: block; margin-bottom: 10px; width: 300px; }
+    button { padding: 10px 20px; }
+    .product-group { margin-bottom: 10px; }
+  </style>
 </head>
 <body>
-    <h1>Arve Vorm</h1>
-    <form id="invoiceForm">
+  <h1>Arve Vorm (Dynamic Products)</h1>
+  <form id="invoiceForm">
+    <label>Arve nr:</label>
+    <input type="text" name="arve_nr" autocomplete="off">
 
-        <label for="arve_nr">Arve nr:</label>
-        <input type="text" id="arve_nr" name="arve_nr" autocomplete="off">
+    <label>Saaja nimi:</label>
+    <input type="text" name="saaja_nimi" autocomplete="name">
 
-        <label for="saaja_nimi">Saaja nimi:</label>
-        <input type="text" id="saaja_nimi" name="saaja_nimi" autocomplete="name">
+    <label>Saaja firma:</label>
+    <input type="text" name="saaja_firma" autocomplete="organization">
 
-        <label for="saaja_firma">Saaja firma:</label>
-        <input type="text" id="saaja_firma" name="saaja_firma" autocomplete="organization">
+    <label>Saaja reg.nr:</label>
+    <input type="text" name="saaja_regnr" autocomplete="off">
 
-        <label for="saaja_regnr">Saaja reg.nr:</label>
-        <input type="text" id="saaja_regnr" name="saaja_regnr" autocomplete="off">
+    <label>Saaja KMKR:</label>
+    <input type="text" name="saaja_kmkr" autocomplete="off">
 
-        <label for="saaja_kmkr">Saaja KMKR:</label>
-        <input type="text" id="saaja_kmkr" name="saaja_kmkr" autocomplete="off">
+    <label>Saaja aadress:</label>
+    <textarea name="saaja_aadress" rows="2" autocomplete="street-address"></textarea>
 
-        <label for="saaja_aadress">Saaja aadress:</label>
-        <textarea id="saaja_aadress" name="saaja_aadress" rows="2" autocomplete="street-address"></textarea>
+    <h3>Tooted:</h3>
+    <div id="products">
+      <!-- We start with ONE row by default -->
+      <div class="product-group">
+        <input type="text" name="product_name" placeholder="Nimi" required>
+        <input type="number" name="product_qty" placeholder="Kogus" required>
+        <input type="number" step="0.01" name="product_price_gross" placeholder="Hind (koos KM)" required>
+      </div>
+    </div>
+    <button type="button" onclick="addProduct()">Lisa toode</button>
 
-        <label for="products_text">Tooted (sisesta manuaalselt):</label>
-        <textarea id="products_text" name="products_text" rows="6" autocomplete="off" required></textarea>
+    <h3>Saaja e-mail:</h3>
+    <input type="email" name="email" autocomplete="email" required>
 
-        <label for="email">Saaja e-mail:</label>
-        <input type="email" id="email" name="email" autocomplete="email" required>
+    <button type="submit">Saada arve PDF</button>
+  </form>
 
-        <button type="submit">Saada arve PDF</button>
-    </form>
+  <p id="status"></p>
 
-    <p id="status"></p>
+  <script>
+    // Add dynamic product row
+    function addProduct() {
+      const div = document.createElement('div');
+      div.classList.add('product-group');
+      div.innerHTML = `
+        <input type="text" name="product_name" placeholder="Nimi" required>
+        <input type="number" name="product_qty" placeholder="Kogus" required>
+        <input type="number" step="0.01" name="product_price_gross" placeholder="Hind (koos KM)" required>
+      `;
+      document.getElementById('products').appendChild(div);
+    }
 
-    <!-- ✅ FIXED SCRIPT -->
-    <script>
-        const form = document.getElementById('invoiceForm');
-        const status = document.getElementById('status');
+    const form = document.getElementById('invoiceForm');
+    const status = document.getElementById('status');
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            status.textContent = "Saadan arvet...";
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      status.textContent = "Saadan arvet...";
 
-            const data = {
-                arve_nr: form.arve_nr.value || '',
-                saaja_nimi: form.saaja_nimi.value || '',
-                saaja_firma: form.saaja_firma.value || '',
-                saaja_regnr: form.saaja_regnr.value || '',
-                saaja_kmkr: form.saaja_kmkr.value || '',
-                saaja_aadress: form.saaja_aadress.value || '',
-                products_text: form.products_text.value.trim(),
-                email: form.email.value.trim()
-            };
-
-            const response = await fetch('/.netlify/functions/create-invoice', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-
-            if (response.ok) {
-                status.textContent = "Arve saadetud ja arhiveeritud!";
-                form.reset();
-            } else {
-                const err = await response.json();
-                status.textContent = "Viga: " + err.error;
-            }
+      // Collect product rows
+      const productGroups = document.querySelectorAll('.product-group');
+      const products = [];
+      productGroups.forEach(group => {
+        const name = group.querySelector('input[name="product_name"]').value.trim();
+        const qty = parseFloat(group.querySelector('input[name="product_qty"]').value);
+        const priceGross = parseFloat(group.querySelector('input[name="product_price_gross"]').value);
+        products.push({
+          name,
+          qty,
+          price_gross: priceGross
         });
-    </script>
+      });
+
+      const data = {
+        arve_nr: form.arve_nr.value.trim(),
+        saaja_nimi: form.saaja_nimi.value.trim(),
+        saaja_firma: form.saaja_firma.value.trim(),
+        saaja_regnr: form.saaja_regnr.value.trim(),
+        saaja_kmkr: form.saaja_kmkr.value.trim(),
+        saaja_aadress: form.saaja_aadress.value.trim(),
+        email: form.email.value.trim(),
+        products
+      };
+
+      const response = await fetch('/.netlify/functions/create-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      if (response.ok) {
+        status.textContent = "Arve saadetud ja arhiveeritud!";
+        form.reset();
+        document.getElementById('products').innerHTML = '';
+        addProduct(); // re-add a single empty row
+      } else {
+        const err = await response.json();
+        status.textContent = "Viga: " + err.error;
+      }
+    });
+  </script>
 </body>
 </html>
