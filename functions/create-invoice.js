@@ -19,7 +19,7 @@ exports.handler = async (event) => {
       throw new Error('No email provided');
     }
 
-    // Create doc
+    // Create the PDF
     const doc = new PDFDocument({ margin: 50 });
     const fileName = `invoice-${arve_nr || 'no-number'}.pdf`;
     const filePath = `/tmp/${fileName}`;
@@ -30,76 +30,89 @@ exports.handler = async (event) => {
     const logoPath = path.join(__dirname, 'benaks-logo.png');
     doc.image(logoPath, 50, 50, { width: 100 });
 
-    // Seller info
-    doc.fontSize(10).text('Benaks OÜ', 400, 50)
-      .text('Reg.nr. 12069824')
-      .text('KMKR nr. EE101433055')
-      .text('Telefon: +372 5182792')
-      .text('E-post: benaksinfo@gmail.com')
-      .text('Hoburaua tee 8a, Randvere küla, Viimsi vald, Harju maakond, 74016');
+    // Seller info (normal Helvetica)
+    doc.font('Helvetica').fontSize(10)
+       .text('Benaks OÜ', 400, 50)
+       .text('Reg.nr. 12069824')
+       .text('KMKR nr. EE101433055')
+       .text('Telefon: +372 5182792')
+       .text('E-post: benaksinfo@gmail.com')
+       .text('Hoburaua tee 8a, Randvere küla, Viimsi vald, Harju maakond, 74016');
 
     doc.moveDown(2);
     doc.fontSize(12).text(`ARVE NR: ${arve_nr || '-'}`);
     doc.moveDown(1);
 
     doc.fontSize(10).text(`Saaja nimi: ${saaja_nimi || '-'}`)
-      .text(`Saaja firma: ${saaja_firma || '-'}`)
-      .text(`Saaja reg.nr: ${saaja_regnr || '-'}`)
-      .text(`Saaja KMKR: ${saaja_kmkr || '-'}`)
-      .text(`Saaja aadress: ${saaja_aadress || '-'}`);
+       .text(`Saaja firma: ${saaja_firma || '-'}`)
+       .text(`Saaja reg.nr: ${saaja_regnr || '-'}`)
+       .text(`Saaja KMKR: ${saaja_kmkr || '-'}`)
+       .text(`Saaja aadress: ${saaja_aadress || '-'}`);
 
     doc.moveDown(2);
 
+    // ----------------------------------------------------------------
     // TABLE HEADER
-    doc.fontSize(10).text('Nimi', 50, doc.y, { width: 170 })
-      .text('Kogus', 220, doc.y, { width: 40 })
-      .text('Hind ilma KM', 280, doc.y, { width: 100 })
-      .text('Hind koos KM', 390, doc.y, { width: 100 });
+    // ----------------------------------------------------------------
+    // Switch to bold for the header row
+    doc.font('Helvetica-Bold').fontSize(10);
 
-    // Horizontal line
-    doc.moveTo(50, doc.y + 5).lineTo(500, doc.y + 5).stroke();
-    doc.moveDown(0.5);
+    // We'll place them all on the same horizontal baseline.
+    // Let's store the starting y coordinate.
+    const headerY = doc.y;
+
+    doc.text('Nimi', 50, headerY, { width: 150 });
+    doc.text('Kogus', 210, headerY, { width: 50 });
+    doc.text('Hind ilma KM', 270, headerY, { width: 100 });
+    doc.text('Hind koos KM', 390, headerY, { width: 100 });
+
+    // Draw a line under the headers
+    doc.moveTo(50, headerY + 12)
+       .lineTo(500, headerY + 12)
+       .stroke();
+
+    // Move the cursor below the line
+    doc.y = headerY + 20;
+
+    // Switch back to normal font for the data rows
+    doc.font('Helvetica');
 
     let totalNet = 0;
     let totalGross = 0;
 
     // For each product
     products.forEach(p => {
-      // 1) Net price for one item
-      const netPriceEach = p.price_gross / 1.22;  // remove 22% VAT
-      // 2) net * qty
+      // net price for 1 item
+      const netPriceEach = p.price_gross / 1.22;  
       const lineNet = netPriceEach * p.qty;
-      // 3) gross = user input * qty
       const lineGross = p.price_gross * p.qty;
 
       totalNet += lineNet;
       totalGross += lineGross;
 
-      doc.text(p.name, 50, doc.y, { width: 170 })
-         .text(p.qty.toString(), 220, doc.y, { width: 40 })
-         .text(lineNet.toFixed(2) + ' €', 280, doc.y, { width: 100 })
-         .text(lineGross.toFixed(2) + ' €', 390, doc.y, { width: 100 });
+      // Grab the current row y
+      const rowY = doc.y;
 
-      doc.moveDown(0.5);
+      doc.text(p.name, 50, rowY, { width: 150 });
+      doc.text(p.qty.toString(), 210, rowY, { width: 50 });
+      doc.text(lineNet.toFixed(2) + ' €', 270, rowY, { width: 100 });
+      doc.text(lineGross.toFixed(2) + ' €', 390, rowY, { width: 100 });
+
+      doc.moveDown(1); // move to the next line
     });
 
-    const vat = totalGross - totalNet; // or totalNet * 0.22
+    const vat = totalGross - totalNet;
 
-    //////////////////////////////////////////////////////////////////////////
-    // 1) 20pt top spacing
-    //////////////////////////////////////////////////////////////////////////
+    // 20pt top spacing
     doc.moveDown(2);
 
-    //////////////////////////////////////////////////////////////////////////
-    // 2) Draw line
-    //////////////////////////////////////////////////////////////////////////
-    doc.moveTo(50, doc.y)
-       .lineTo(500, doc.y)
+    // Draw horizontal line
+    const lineY = doc.y;
+    doc.moveTo(50, lineY)
+       .lineTo(500, lineY)
        .stroke();
 
-    //////////////////////////////////////////////////////////////////////////
-    // 3) 20pt bottom spacing
-    //////////////////////////////////////////////////////////////////////////
+    // 20pt bottom spacing
     doc.moveDown(2);
 
     // Totals
@@ -112,12 +125,13 @@ exports.handler = async (event) => {
     doc.text('Viivis: 0.05% päevas', { align: 'left' });
 
     doc.moveDown(2);
-    doc.fontSize(9).text('Benaks OÜ IBAN: EE832200221051880171', { align: 'left' });
+    doc.fontSize(9)
+       .text('Benaks OÜ IBAN: EE832200221051880171', { align: 'left' });
 
     doc.end();
     await new Promise(resolve => writeStream.on('finish', resolve));
 
-    // Email
+    // Send the email
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
