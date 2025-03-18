@@ -1,28 +1,92 @@
+// Updated Netlify Function: create-invoice.js
 const PDFDocument = require('pdfkit');
 const nodemailer = require('nodemailer');
 const { google } = require('googleapis');
 const fs = require('fs');
+const path = require('path');
 
 exports.handler = async (event) => {
-    const { name, email, details, amount } = JSON.parse(event.body);
+    const {
+        arve_nr, saaja_nimi, saaja_firma, saaja_regnr, saaja_kmkr, saaja_aadress,
+        products, // array of { name, qty, unit_price }
+        email
+    } = JSON.parse(event.body);
 
-    const doc = new PDFDocument();
-    const fileName = `invoice-${Date.now()}.pdf`;
+    const doc = new PDFDocument({ margin: 50 });
+    const fileName = `invoice-${arve_nr}.pdf`;
     const filePath = `/tmp/${fileName}`;
     const writeStream = fs.createWriteStream(filePath);
     doc.pipe(writeStream);
 
-    doc.fontSize(20).text('Invoice', { align: 'center' });
-    doc.moveDown();
-    doc.text(`Customer: ${name}`);
-    doc.text(`Email: ${email}`);
-    doc.text(`Details: ${details}`);
-    doc.text(`Total: €${amount}`);
+    // Add logo
+    const logoPath = path.join(__dirname, 'benaks-logo.png'); // Make sure to place your logo image in /functions/ folder
+    doc.image(logoPath, 50, 50, { width: 100 });
+
+    // Seller info
+    doc.fontSize(10).text('Benaks OÜ', 400, 50)
+        .text('Reg.nr. 12069824')
+        .text('KMKR nr. EE101433055')
+        .text('Telefon: +372 5182792')
+        .text('E-post: benaksinfo@gmail.com')
+        .text('Hoburaua tee 8a, Randvere küla, Viimsi vald, Harju maakond, 74016');
+
+    doc.moveDown(2);
+    doc.fontSize(12).text(`ARVE NR: ${arve_nr}`);
+    doc.moveDown(1);
+
+    // Client info
+    doc.fontSize(10).text(`Saaja nimi: ${saaja_nimi}`)
+        .text(`Saaja firma: ${saaja_firma}`)
+        .text(`Saaja reg.nr: ${saaja_regnr}`)
+        .text(`Saaja KMKR: ${saaja_kmkr}`)
+        .text(`Saaja aadress: ${saaja_aadress}`);
+
+    doc.moveDown(2);
+
+    // Product Table Header
+    doc.fontSize(10).text('Toode/Teenused', 50, doc.y, { width: 200 })
+        .text('Kogus', 260, doc.y, { width: 50 })
+        .text('Hind', 320, doc.y, { width: 50 })
+        .text('Kokku', 400, doc.y, { width: 100 });
+
+    doc.moveTo(50, doc.y + 5).lineTo(500, doc.y + 5).stroke();
+    doc.moveDown(0.5);
+
+    // Table rows
+    let total_no_vat = 0;
+    products.forEach(p => {
+        const lineTotal = p.qty * p.unit_price;
+        total_no_vat += lineTotal;
+
+        doc.text(p.name, 50, doc.y, { width: 200 })
+            .text(p.qty.toString(), 260, doc.y, { width: 50 })
+            .text(p.unit_price.toFixed(2), 320, doc.y, { width: 50 })
+            .text(lineTotal.toFixed(2) + ' €', 400, doc.y, { width: 100 });
+
+        doc.moveDown(0.5);
+    });
+
+    // Totals
+    const vat = total_no_vat * 0.22;
+    const total_with_vat = total_no_vat + vat;
+
+    doc.moveDown(1);
+    doc.text(`Summa ilma KM-ta: ${total_no_vat.toFixed(2)} €`);
+    doc.text(`KM (22%): ${vat.toFixed(2)} €`);
+    doc.text(`Kokku: ${total_with_vat.toFixed(2)} €`);
+
+    doc.moveDown(2);
+    doc.text('Maksetähtaeg: 7 päeva', { align: 'left' });
+    doc.text('Viivis: 0.05% päevas', { align: 'left' });
+
+    doc.moveDown(2);
+    doc.fontSize(9).text('Benaks OÜ IBAN: EE832200221051880171', { align: 'left' });
+
     doc.end();
 
     await new Promise(resolve => writeStream.on('finish', resolve));
 
-    // Send Email via Gmail SMTP
+    // Email invoice
     const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -32,38 +96,12 @@ exports.handler = async (event) => {
     });
 
     await transporter.sendMail({
-        from: `"Your Store" <${process.env.GMAIL_USER}>`,
+        from: `Benaks OÜ <${process.env.GMAIL_USER}>`,
         to: email,
-        subject: 'Your Invoice',
-        text: 'Please find your invoice attached.',
-        attachments: [{
-            filename: fileName,
-            path: filePath
-        }]
+        subject: `Arve ${arve_nr} - Benaks OÜ`,
+        text: 'Arve on lisatud manusena.',
+        attachments: [{ filename: fileName, path: filePath }]
     });
 
-    // Upload to Google Drive
-    const auth = new google.auth.JWT(
-        process.env.GOOGLE_CLIENT_EMAIL,
-        null,
-        process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-        ['https://www.googleapis.com/auth/drive.file']
-    );
-
-    const drive = google.drive({ version: 'v3', auth });
-    const driveResponse = await drive.files.create({
-        requestBody: {
-            name: fileName,
-            mimeType: 'application/pdf'
-        },
-        media: {
-            mimeType: 'application/pdf',
-            body: fs.createReadStream(filePath)
-        }
-    });
-
-    return {
-        statusCode: 200,
-        body: JSON.stringify({ success: true, fileId: driveResponse.data.id })
-    };
+    return { statusCode: 200, body: JSON.stringify({ success: true }) };
 };
