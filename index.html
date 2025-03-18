@@ -12,29 +12,30 @@
 <body>
     <h1>Arve Vorm</h1>
     <form id="invoiceForm">
-        <label>Arve nr:</label>
-        <input type="text" name="arve_nr" required>
 
-        <label>Saaja nimi:</label>
-        <input type="text" name="saaja_nimi" required>
+        <label for="arve_nr">Arve nr:</label>
+        <input type="text" id="arve_nr" name="arve_nr" autocomplete="off">
 
-        <label>Saaja firma:</label>
-        <input type="text" name="saaja_firma">
+        <label for="saaja_nimi">Saaja nimi:</label>
+        <input type="text" id="saaja_nimi" name="saaja_nimi" autocomplete="name">
 
-        <label>Saaja reg.nr:</label>
-        <input type="text" name="saaja_regnr">
+        <label for="saaja_firma">Saaja firma:</label>
+        <input type="text" id="saaja_firma" name="saaja_firma" autocomplete="organization">
 
-        <label>Saaja KMKR:</label>
-        <input type="text" name="saaja_kmkr">
+        <label for="saaja_regnr">Saaja reg.nr:</label>
+        <input type="text" id="saaja_regnr" name="saaja_regnr" autocomplete="off">
 
-        <label>Saaja aadress:</label>
-        <textarea name="saaja_aadress" required></textarea>
+        <label for="saaja_kmkr">Saaja KMKR:</label>
+        <input type="text" id="saaja_kmkr" name="saaja_kmkr" autocomplete="off">
 
-        <label>Tooted (sisesta manuaalselt):</label>
-        <textarea name="products_text" rows="6" required></textarea>
+        <label for="saaja_aadress">Saaja aadress:</label>
+        <textarea id="saaja_aadress" name="saaja_aadress" rows="2" autocomplete="street-address"></textarea>
 
-        <h3>Saaja e-mail:</h3>
-        <input type="email" name="email" required>
+        <label for="products_text">Tooted (sisesta manuaalselt):</label>
+        <textarea id="products_text" name="products_text" rows="6" autocomplete="off" required></textarea>
+
+        <label for="email">Saaja e-mail:</label>
+        <input type="email" id="email" name="email" autocomplete="email" required>
 
         <button type="submit">Saada arve PDF</button>
     </form>
@@ -50,14 +51,14 @@
             status.textContent = "Saadan arvet...";
 
             const data = {
-                arve_nr: form.arve_nr.value,
-                saaja_nimi: form.saaja_nimi.value,
-                saaja_firma: form.saaja_firma.value,
-                saaja_regnr: form.saaja_regnr.value,
-                saaja_kmkr: form.saaja_kmkr.value,
-                saaja_aadress: form.saaja_aadress.value,
-                products_text: form.products_text.value,
-                email: form.email.value,
+                arve_nr: form.arve_nr.value || '',
+                saaja_nimi: form.saaja_nimi.value || '',
+                saaja_firma: form.saaja_firma.value || '',
+                saaja_regnr: form.saaja_regnr.value || '',
+                saaja_kmkr: form.saaja_kmkr.value || '',
+                saaja_aadress: form.saaja_aadress.value || '',
+                products_text: form.products_text.value.trim(),
+                email: form.email.value.trim()
             };
 
             const response = await fetch('/.netlify/functions/create-invoice', {
@@ -69,7 +70,8 @@
                 status.textContent = "Arve saadetud ja arhiveeritud!";
                 form.reset();
             } else {
-                status.textContent = "Viga: Arvet ei saadetud!";
+                const err = await response.json();
+                status.textContent = \"Viga: \" + err.error;
             }
         });
     </script>
