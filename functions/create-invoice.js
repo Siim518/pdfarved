@@ -16,7 +16,7 @@ exports.handler = async (event) => {
             throw new Error('Products text is empty');
         }
 
-        const doc = new PDFDocument({ margin: 50 });
+        const doc = new PDFDocument({ margin: 50, font: 'Times-Roman' });
         const fileName = `invoice-${arve_nr || 'no-number'}.pdf`;
         const filePath = `/tmp/${fileName}`;
         const writeStream = fs.createWriteStream(filePath);
@@ -24,9 +24,6 @@ exports.handler = async (event) => {
 
         const logoPath = path.join(__dirname, 'benaks-logo.png');
         doc.image(logoPath, 50, 50, { width: 100 });
-
-        // ✅ Here we switch to a built-in font (Times-Roman)
-        doc.font('Times-Roman');
 
         doc.fontSize(10).text('Benaks OÜ', 400, 50)
             .text('Reg.nr. 12069824')
