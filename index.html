@@ -42,6 +42,7 @@
 
     <p id="status"></p>
 
+    <!-- ✅ FIXED SCRIPT -->
     <script>
         const form = document.getElementById('invoiceForm');
         const status = document.getElementById('status');
@@ -63,6 +64,7 @@
 
             const response = await fetch('/.netlify/functions/create-invoice', {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
 
@@ -71,7 +73,7 @@
                 form.reset();
             } else {
                 const err = await response.json();
-                status.textContent = \"Viga: \" + err.error;
+                status.textContent = "Viga: " + err.error;
             }
         });
     </script>
