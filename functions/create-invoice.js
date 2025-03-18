@@ -10,11 +10,11 @@ exports.handler = async (event) => {
 
         const {
             arve_nr, saaja_nimi, saaja_firma, saaja_regnr, saaja_kmkr, saaja_aadress,
-            products, email
+            products_text, email
         } = data;
 
-        if (!Array.isArray(products) || products.length === 0) {
-            throw new Error('Products array is empty or invalid');
+        if (!products_text || products_text.trim() === '') {
+            throw new Error('Products text is empty');
         }
 
         const doc = new PDFDocument({ margin: 50 });
@@ -45,34 +45,11 @@ exports.handler = async (event) => {
 
         doc.moveDown(2);
 
-        doc.fontSize(10).text('Toode/Teenused', 50, doc.y, { width: 200 })
-            .text('Kogus', 260, doc.y, { width: 50 })
-            .text('Hind', 320, doc.y, { width: 50 })
-            .text('Kokku', 400, doc.y, { width: 100 });
-
-        doc.moveTo(50, doc.y + 5).lineTo(500, doc.y + 5).stroke();
+        doc.fontSize(10).text('Tooted:', 50, doc.y);
         doc.moveDown(0.5);
-
-        let total_no_vat = 0;
-        products.forEach(p => {
-            const lineTotal = p.qty * p.unit_price;
-            total_no_vat += lineTotal;
-
-            doc.text(p.name, 50, doc.y, { width: 200 })
-                .text(p.qty.toString(), 260, doc.y, { width: 50 })
-                .text(p.unit_price.toFixed(2), 320, doc.y, { width: 50 })
-                .text(lineTotal.toFixed(2) + ' €', 400, doc.y, { width: 100 });
-
-            doc.moveDown(0.5);
+        doc.fontSize(10).text(products_text, {
+            width: 500
         });
-
-        const vat = total_no_vat * 0.22;
-        const total_with_vat = total_no_vat + vat;
-
-        doc.moveDown(1);
-        doc.text(`Summa ilma KM-ta: ${total_no_vat.toFixed(2)} €`);
-        doc.text(`KM (22%): ${vat.toFixed(2)} €`);
-        doc.text(`Kokku: ${total_with_vat.toFixed(2)} €`);
 
         doc.moveDown(2);
         doc.text('Maksetähtaeg: 7 päeva', { align: 'left' });

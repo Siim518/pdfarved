@@ -7,7 +7,6 @@
         body { font-family: Arial, sans-serif; padding: 20px; }
         input, textarea { display: block; margin-bottom: 10px; width: 300px; }
         button { padding: 10px 20px; }
-        .product-group { margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -31,15 +30,8 @@
         <label>Saaja aadress:</label>
         <textarea name="saaja_aadress" required></textarea>
 
-        <h3>Tooted:</h3>
-        <div id="products">
-            <div class="product-group">
-                <input type="text" name="product_name" placeholder="Toode" required>
-                <input type="number" name="product_qty" placeholder="Kogus" required>
-                <input type="number" step="0.01" name="product_price" placeholder="Hind" required>
-            </div>
-        </div>
-        <button type="button" onclick="addProduct()">Lisa toode</button>
+        <label>Tooted (sisesta manuaalselt):</label>
+        <textarea name="products_text" rows="6" required></textarea>
 
         <h3>Saaja e-mail:</h3>
         <input type="email" name="email" required>
@@ -50,34 +42,12 @@
     <p id="status"></p>
 
     <script>
-        function addProduct() {
-            const div = document.createElement('div');
-            div.classList.add('product-group');
-            div.innerHTML = `
-                <input type="text" name="product_name" placeholder="Toode" required>
-                <input type="number" name="product_qty" placeholder="Kogus" required>
-                <input type="number" step="0.01" name="product_price" placeholder="Hind" required>
-            `;
-            document.getElementById('products').appendChild(div);
-        }
-
         const form = document.getElementById('invoiceForm');
         const status = document.getElementById('status');
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             status.textContent = "Saadan arvet...";
-
-            // Collect products
-            const productGroups = document.querySelectorAll('.product-group');
-            const products = [];
-            productGroups.forEach(group => {
-                products.push({
-                    name: group.querySelector('input[name="product_name"]').value,
-                    qty: parseInt(group.querySelector('input[name="product_qty"]').value),
-                    unit_price: parseFloat(group.querySelector('input[name="product_price"]').value)
-                });
-            });
 
             const data = {
                 arve_nr: form.arve_nr.value,
@@ -86,8 +56,8 @@
                 saaja_regnr: form.saaja_regnr.value,
                 saaja_kmkr: form.saaja_kmkr.value,
                 saaja_aadress: form.saaja_aadress.value,
+                products_text: form.products_text.value,
                 email: form.email.value,
-                products: products
             };
 
             const response = await fetch('/.netlify/functions/create-invoice', {
@@ -98,8 +68,6 @@
             if (response.ok) {
                 status.textContent = "Arve saadetud ja arhiveeritud!";
                 form.reset();
-                document.getElementById('products').innerHTML = ''; // Clear product inputs
-                addProduct(); // Add empty product row again
             } else {
                 status.textContent = "Viga: Arvet ei saadetud!";
             }
