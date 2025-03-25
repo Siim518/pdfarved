@@ -50,7 +50,7 @@
       display: block;
       margin-bottom: 10px;
       width: 100%;
-      box-sizing: border-box;
+      box-sizing: border-box; /* ensures padding doesn't add to overall width */
       padding: 8px;
       font-size: 14px;
     }
@@ -58,14 +58,14 @@
     /* Product group row spacing + wrapping */
     .product-group {
       display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
+      flex-wrap: wrap; /* allows inputs to wrap on smaller screens */
+      gap: 10px;       /* some spacing between fields */
       margin-bottom: 10px;
     }
-    /* Each product input can adapt to smaller screens */
+    /* Each product input is flexible but can also adapt to smaller screens */
     .product-group input {
-      flex: 1 1 100px;
-      min-width: 0;
+      flex: 1 1 100px; /* at least 100px wide, can grow to fill space */
+      min-width: 0;    /* ensures flex item can shrink if needed */
     }
 
     button {
@@ -153,7 +153,6 @@
   </div>
 
   <script>
-    // Add first product row if none
     function addProduct() {
       const div = document.createElement('div');
       div.classList.add('product-group');
@@ -165,15 +164,14 @@
       document.getElementById('products').appendChild(div);
     }
 
-    // On page load
+    // Ensure at least 1 product row on load
     window.addEventListener('DOMContentLoaded', () => {
       if (document.querySelectorAll('.product-group').length === 0) {
         addProduct();
       }
-      loadArchives();
+      loadArchives(); 
     });
 
-    // Submit invoice form => create invoice via Netlify function
     const form = document.getElementById('invoiceForm');
     const statusMsg = document.getElementById('status');
 
@@ -181,7 +179,7 @@
       e.preventDefault();
       statusMsg.textContent = "Saadan arvet...";
 
-      // Gather all product rows
+      // Collect product rows
       const productGroups = document.querySelectorAll('.product-group');
       const products = [];
       productGroups.forEach(group => {
@@ -191,7 +189,6 @@
         products.push({ name, qty, price_gross: priceGross });
       });
 
-      // Gather main form fields
       const data = {
         arve_nr: form.arve_nr.value.trim(),
         saaja_nimi: form.saaja_nimi.value.trim(),
@@ -204,7 +201,6 @@
       };
 
       try {
-        // Send to Netlify function => create PDF
         const response = await fetch('/.netlify/functions/create-invoice', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -212,29 +208,23 @@
         });
 
         if (!response.ok) {
-          // If function returns error JSON => parse it
           const err = await response.json();
           throw new Error(err.error);
         }
-
-        // If success => parse success JSON if desired
-        await response.json(); // e.g. { success: true }
         statusMsg.textContent = "Arve saadetud ja arhiveeritud!";
-
-        // Reset the form
         form.reset();
         document.getElementById('products').innerHTML = '';
         addProduct();
-        loadArchives(); // refresh archive
+        loadArchives(); // reload archive
       } catch (err) {
         statusMsg.textContent = "Viga: " + err.message;
       }
     });
 
-    // Load and display archived PDFs => 3 columns: Arve nr., Nimi, E-mail + Link
+    // Arhiiv => 3 columns: Arve nr., Nimi, E-mail, plus Link
     async function loadArchives() {
       const archiveDiv = document.getElementById('archive');
-      if (!archiveDiv) return;
+      if (!archiveDiv) return; 
       archiveDiv.textContent = 'Laen arhiivi...';
 
       try {
@@ -242,8 +232,8 @@
         if (!resp.ok) {
           throw new Error('Could not load archives');
         }
-
         const files = await resp.json();
+
         if (files.length === 0) {
           archiveDiv.textContent = 'Pole veel ühtegi arvet.';
           return;
@@ -266,7 +256,7 @@
               name = meta.name || '';
               email = meta.email || '';
             } catch (err) {
-              // if invalid JSON => skip
+              // if invalid JSON, ignore
             }
           }
 
