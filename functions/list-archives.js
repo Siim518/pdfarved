@@ -2,7 +2,7 @@ const { google } = require('googleapis');
 
 exports.handler = async () => {
   try {
-    // 1) Auth with Google
+    // 1) Auth with Google service account
     const auth = new google.auth.JWT(
       process.env.GOOGLE_CLIENT_EMAIL,
       null,
@@ -11,8 +11,12 @@ exports.handler = async () => {
     );
     const drive = google.drive({ version: 'v3', auth });
 
-    // 2) Limit to your Invoices folder
-    const folderId = '11-WG0xQwc21r_yTuBQXD-IiBNMwf8fXp';
+    // 2) Use your new Invoices folder ID
+    // Link: https://drive.google.com/drive/folders/13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO
+    // So folderId = "13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO"
+    const folderId = '13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO';
+
+    // 3) List only PDFs in that folder
     const res = await drive.files.list({
       q: `'${folderId}' in parents and mimeType='application/pdf'`,
       fields: 'files(id, name, webViewLink)'
