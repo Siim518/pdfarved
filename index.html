@@ -146,7 +146,7 @@
     <p id="status"></p>
   </div>
 
-  <!-- Archive container for listing archived PDFs (3 columns + link) -->
+  <!-- Archive container for listing archived PDFs -->
   <div class="archive-container">
     <h2>Arhiiv</h2>
     <div id="archive" class="archive-list">Laen arhiivi...</div>
@@ -169,7 +169,7 @@
       if (document.querySelectorAll('.product-group').length === 0) {
         addProduct();
       }
-      loadArchives(); // calls the list-archives function
+      loadArchives(); 
     });
 
     const form = document.getElementById('invoiceForm');
@@ -215,13 +215,13 @@
         form.reset();
         document.getElementById('products').innerHTML = '';
         addProduct();
-        loadArchives(); // refresh archive if needed
+        loadArchives(); // reload archive
       } catch (err) {
         statusMsg.textContent = "Viga: " + err.message;
       }
     });
 
-    // 3-column archive: invoice nr, name, email, plus link
+    // Arhiiv => 3 columns: Arve nr., Nimi, E-mail, plus Link
     async function loadArchives() {
       const archiveDiv = document.getElementById('archive');
       if (!archiveDiv) return; 
@@ -239,9 +239,9 @@
           return;
         }
 
-        // Build a table with invoice nr, name, email, plus a link
+        // Build table
         let html = '<table border="1" cellpadding="5" cellspacing="0" style="width:100%; max-width:550px;">';
-        html += '<tr><th>Invoice Nr</th><th>Name</th><th>Email</th><th>Link</th></tr>';
+        html += '<tr><th>Arve nr.</th><th>Nimi</th><th>E-mail</th><th>Link</th></tr>';
 
         files.forEach(file => {
           let invoiceNr = '';
