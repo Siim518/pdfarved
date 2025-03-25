@@ -88,7 +88,7 @@ Viimsi vald, Harju maakond, 74016`;
     let totalNet = 0;
     let totalGross = 0;
 
-    // List products
+    // 6) List products
     products.forEach((p) => {
       const rowY = doc.y;
 
@@ -131,10 +131,8 @@ Viimsi vald, Harju maakond, 74016`;
     doc.end();
     await new Promise(resolve => writeStream.on('finish', resolve));
 
-    // Upload to your new Drive folder
-    // Folder link => https://drive.google.com/drive/folders/13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO
-    // => folderId = '13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO'
-    const folderId = '13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO';
+    // 7) Upload to Drive with metadata in 'description'
+    const folderId = '13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO'; // your new folder
     const auth = new google.auth.JWT(
       process.env.GOOGLE_CLIENT_EMAIL,
       null,
@@ -143,11 +141,19 @@ Viimsi vald, Harju maakond, 74016`;
     );
     const drive = google.drive({ version: 'v3', auth });
 
+    // We embed Invoice Nr, Name, Email in the description:
+    const metaObj = {
+      invoiceNr: arve_nr,
+      name: saaja_nimi,
+      email: email
+    };
+
     await drive.files.create({
       requestBody: {
         name: fileName,
         mimeType: 'application/pdf',
-        parents: [folderId]
+        parents: [folderId],
+        description: JSON.stringify(metaObj)
       },
       media: {
         mimeType: 'application/pdf',
@@ -155,7 +161,7 @@ Viimsi vald, Harju maakond, 74016`;
       }
     });
 
-    // Send Email (from your new Gmail)
+    // 8) Send Email (from your new Gmail)
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -179,7 +185,7 @@ Viimsi vald, Harju maakond, 74016`;
   } catch (err) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: err.message || 'Unknown error' })
+      body: JSON.stringify({ error: err.message })
     };
   }
 };

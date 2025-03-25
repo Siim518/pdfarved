@@ -12,14 +12,12 @@ exports.handler = async () => {
     const drive = google.drive({ version: 'v3', auth });
 
     // 2) Use your new Invoices folder ID
-    // Link: https://drive.google.com/drive/folders/13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO
-    // So folderId = "13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO"
     const folderId = '13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO';
 
-    // 3) List only PDFs in that folder
+    // 3) List PDFs, but also get 'description' so we can parse it
     const res = await drive.files.list({
       q: `'${folderId}' in parents and mimeType='application/pdf'`,
-      fields: 'files(id, name, webViewLink)'
+      fields: 'files(id, name, description, webViewLink)'
     });
 
     const files = res.data.files || [];

@@ -97,14 +97,6 @@
       border-radius: 8px;
       text-align: left;
     }
-
-    .archive-list ul {
-      list-style-type: none;
-      padding-left: 0;
-    }
-    .archive-list li {
-      margin-bottom: 8px;
-    }
   </style>
 </head>
 <body>
@@ -154,7 +146,7 @@
     <p id="status"></p>
   </div>
 
-  <!-- Archive container for listing archived PDFs (optional) -->
+  <!-- Archive container for listing archived PDFs (3 columns + link) -->
   <div class="archive-container">
     <h2>Arhiiv</h2>
     <div id="archive" class="archive-list">Laen arhiivi...</div>
@@ -177,7 +169,7 @@
       if (document.querySelectorAll('.product-group').length === 0) {
         addProduct();
       }
-      loadArchives(); // if you have the list-archives function
+      loadArchives(); // calls the list-archives function
     });
 
     const form = document.getElementById('invoiceForm');
@@ -229,10 +221,10 @@
       }
     });
 
-    // If you have a list-archives function
+    // 3-column archive: invoice nr, name, email, plus link
     async function loadArchives() {
       const archiveDiv = document.getElementById('archive');
-      if (!archiveDiv) return; // safety check if no archive container
+      if (!archiveDiv) return; 
       archiveDiv.textContent = 'Laen arhiivi...';
 
       try {
@@ -247,12 +239,40 @@
           return;
         }
 
-        let html = '<ul>';
+        // Build a table with invoice nr, name, email, plus a link
+        let html = '<table border="1" cellpadding="5" cellspacing="0" style="width:100%; max-width:550px;">';
+        html += '<tr><th>Invoice Nr</th><th>Name</th><th>Email</th><th>Link</th></tr>';
+
         files.forEach(file => {
-          html += `<li><a href="${file.webViewLink}" target="_blank">${file.name}</a></li>`;
+          let invoiceNr = '';
+          let name = '';
+          let email = '';
+
+          // parse JSON from file.description
+          if (file.description) {
+            try {
+              const meta = JSON.parse(file.description);
+              invoiceNr = meta.invoiceNr || '';
+              name = meta.name || '';
+              email = meta.email || '';
+            } catch (err) {
+              // if invalid JSON, ignore
+            }
+          }
+
+          html += `
+            <tr>
+              <td>${invoiceNr}</td>
+              <td>${name}</td>
+              <td>${email}</td>
+              <td><a href="${file.webViewLink}" target="_blank">${file.name}</a></td>
+            </tr>
+          `;
         });
-        html += '</ul>';
+
+        html += '</table>';
         archiveDiv.innerHTML = html;
+
       } catch (err) {
         archiveDiv.textContent = 'Viga arhiivi laadimisel: ' + err.message;
       }
