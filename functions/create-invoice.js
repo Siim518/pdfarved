@@ -34,7 +34,7 @@ exports.handler = async (event) => {
     // We'll start both columns at y=140 so they're on the same horizontal line
     const topOfColumns = 140;
 
-    // 3A) Left column (Seller info) at x=50, y=140
+    // Left column (Seller info) at x=50, y=140
     const sellerX = 50;
     doc.fontSize(10);
 
@@ -47,13 +47,13 @@ Hoburaua tee 8a, Randvere küla,
 Viimsi vald, Harju maakond, 74016`;
 
     doc.text(sellerInfo, sellerX, topOfColumns, { width: 200 });
-    const finalSellerY = doc.y; // bottom of seller column
+    const finalSellerY = doc.y;
 
-    // 3B) Right column (Client info) at x=300, y=140
+    // Right column (Client info) at x=300, y=140
     let clientX = 300;
     let clientY = topOfColumns;
 
-    doc.text(`ARVE NR: ${arve_nr || '-'}`, clientX, clientY);  
+    doc.text(`ARVE NR: ${arve_nr || '-'}`, clientX, clientY);
     clientY += 14;
     doc.text(`Saaja nimi: ${saaja_nimi || '-'}`, clientX, clientY);
     clientY += 14;
@@ -66,21 +66,15 @@ Viimsi vald, Harju maakond, 74016`;
     doc.text(`Saaja aadress: ${saaja_aadress || '-'}`, clientX, clientY);
     clientY += 14;
 
-    const finalClientY = clientY; // bottom of client column
-
-    // 4) Move below both columns
+    const finalClientY = clientY;
     const endOfColumns = Math.max(finalSellerY, finalClientY);
     doc.y = endOfColumns + 30;
 
-    // 5) Print table headers on one baseline
+    // Table headers on one baseline
     const headingY = doc.y;
-    // Nimi  (x=50)
     doc.text('Nimi', 50, headingY, { width: 150 });
-    // Kogus (x=210)
     doc.text('Kogus', 210, headingY, { width: 50 });
-    // Hind ilma KM (x=270)
     doc.text('Hind ilma KM', 270, headingY, { width: 100 });
-    // Hind koos KM (x=390)
     doc.text('Hind koos KM', 390, headingY, { width: 100 });
 
     // Draw line below headers
@@ -94,7 +88,7 @@ Viimsi vald, Harju maakond, 74016`;
     let totalNet = 0;
     let totalGross = 0;
 
-    // 6) List products
+    // List products
     products.forEach((p) => {
       const rowY = doc.y;
 
@@ -106,16 +100,14 @@ Viimsi vald, Harju maakond, 74016`;
       totalNet += lineNet;
       totalGross += lineGross;
 
-      // Fill row
       doc.text(p.name, 50, rowY, { width: 150 });
       doc.text(p.qty.toString(), 210, rowY, { width: 50 });
       doc.text(lineNet.toFixed(2) + ' €', 270, rowY, { width: 100 });
       doc.text(lineGross.toFixed(2) + ' €', 390, rowY, { width: 100 });
 
-      doc.moveDown(1); // move to next line
+      doc.moveDown(1);
     });
 
-    // 7) Totals
     const vat = totalGross - totalNet;
 
     doc.moveDown(1);
@@ -135,12 +127,14 @@ Viimsi vald, Harju maakond, 74016`;
     doc.fontSize(9)
        .text('Benaks OÜ IBAN: EE832200221051880171');
 
-    // 8) Finalize PDF
+    // Finalize PDF
     doc.end();
     await new Promise(resolve => writeStream.on('finish', resolve));
 
-    // 9) Upload to Google Drive folder
-    const folderId = '11-WG0xQwc21r_yTuBQXD-IiBNMwf8fXp'; // <--- your folder ID
+    // Upload to your new Drive folder
+    // Folder link => https://drive.google.com/drive/folders/13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO
+    // => folderId = '13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO'
+    const folderId = '13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO';
     const auth = new google.auth.JWT(
       process.env.GOOGLE_CLIENT_EMAIL,
       null,
@@ -161,7 +155,7 @@ Viimsi vald, Harju maakond, 74016`;
       }
     });
 
-    // 10) Send Email
+    // Send Email (from your new Gmail)
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
