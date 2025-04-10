@@ -29,13 +29,15 @@
       margin: 10px 0 0 0;
     }
 
-    /* Container is now responsive: width 90%, max-width 550px */
+    /*
+      Container wide with 70px left/right padding
+    */
     .container {
       background-color: #fff;
       width: 90%;
-      max-width: 550px;
+      max-width: 1200px; 
       margin: 20px auto 30px auto;
-      padding: 20px;
+      padding: 20px 70px;  /* bigger horizontal padding */
       border-radius: 8px;
       text-align: left; /* left-align content inside */
     }
@@ -50,7 +52,7 @@
       display: block;
       margin-bottom: 10px;
       width: 100%;
-      box-sizing: border-box; /* ensures padding doesn't add to overall width */
+      box-sizing: border-box;
       padding: 8px;
       font-size: 14px;
     }
@@ -58,14 +60,23 @@
     /* Product group row spacing + wrapping */
     .product-group {
       display: flex;
-      flex-wrap: wrap; /* allows inputs to wrap on smaller screens */
-      gap: 10px;       /* some spacing between fields */
+      flex-wrap: wrap;
+      gap: 10px;
       margin-bottom: 10px;
     }
-    /* Each product input is flexible but can also adapt to smaller screens */
+
+    /* All product inputs are normal. The main difference is one of them is a textarea. */
     .product-group input {
-      flex: 1 1 100px; /* at least 100px wide, can grow to fill space */
-      min-width: 0;    /* ensures flex item can shrink if needed */
+      flex: 1 1 100px;
+      min-width: 0;
+    }
+    /* We allow auto-resize on the Nimi textarea */
+    .product-group textarea[name="product_name"] {
+      flex: 1 1 100px;
+      min-width: 0;
+      resize: none; 
+      overflow: hidden; 
+      min-height: 3rem;
     }
 
     button {
@@ -87,7 +98,7 @@
       font-weight: bold;
     }
 
-    /* Archive container also responsive */
+    /* Archive container also normal scale */
     .archive-container {
       width: 90%;
       max-width: 550px;
@@ -130,7 +141,14 @@
       <h3>Tooted:</h3>
       <div id="products">
         <div class="product-group">
-          <input type="text" name="product_name" placeholder="Nimi" required>
+          <!-- No extra whitespace inside textarea.  -->
+          <textarea
+            name="product_name"
+            placeholder="Nimi"
+            required
+            oninput="autoExpand(this)"
+          ></textarea>
+
           <input type="number" name="product_qty" placeholder="Kogus" required>
           <input type="number" step="0.01" name="product_price_gross" placeholder="Hind (koos KM)" required>
         </div>
@@ -146,30 +164,46 @@
     <p id="status"></p>
   </div>
 
-  <!-- Archive container for listing archived PDFs -->
+  <!-- Archive container -->
   <div class="archive-container">
     <h2>Arhiiv</h2>
     <div id="archive" class="archive-list">Laen arhiivi...</div>
   </div>
 
   <script>
+    /*
+      autoExpand => expands the textarea as user types or presses Enter
+      We set height to 'auto', then to scrollHeight
+    */
+    function autoExpand(textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+    }
+
     function addProduct() {
       const div = document.createElement('div');
       div.classList.add('product-group');
       div.innerHTML = `
-        <input type="text" name="product_name" placeholder="Nimi" required>
+        <textarea
+          name="product_name"
+          placeholder="Nimi"
+          required
+          oninput="autoExpand(this)"
+          style="resize:none; overflow:hidden; min-height:3rem;"
+        ></textarea>
+
         <input type="number" name="product_qty" placeholder="Kogus" required>
         <input type="number" step="0.01" name="product_price_gross" placeholder="Hind (koos KM)" required>
       `;
       document.getElementById('products').appendChild(div);
     }
 
-    // Ensure at least 1 product row on load
+    // Ensure at least one product row on load
     window.addEventListener('DOMContentLoaded', () => {
       if (document.querySelectorAll('.product-group').length === 0) {
         addProduct();
       }
-      loadArchives(); 
+      loadArchives();
     });
 
     const form = document.getElementById('invoiceForm');
@@ -179,11 +213,11 @@
       e.preventDefault();
       statusMsg.textContent = "Saadan arvet...";
 
-      // Collect product rows
+      // Gather product rows
       const productGroups = document.querySelectorAll('.product-group');
       const products = [];
       productGroups.forEach(group => {
-        const name = group.querySelector('input[name=\"product_name\"]').value.trim();
+        const name = group.querySelector('textarea[name=\"product_name\"]').value.trim();
         const qty = parseFloat(group.querySelector('input[name=\"product_qty\"]').value);
         const priceGross = parseFloat(group.querySelector('input[name=\"product_price_gross\"]').value);
         products.push({ name, qty, price_gross: priceGross });
@@ -215,7 +249,7 @@
         form.reset();
         document.getElementById('products').innerHTML = '';
         addProduct();
-        loadArchives(); // reload archive
+        loadArchives(); // refresh archive
       } catch (err) {
         statusMsg.textContent = "Viga: " + err.message;
       }
@@ -224,7 +258,7 @@
     // Arhiiv => 3 columns: Arve nr., Nimi, E-mail, plus Link
     async function loadArchives() {
       const archiveDiv = document.getElementById('archive');
-      if (!archiveDiv) return; 
+      if (!archiveDiv) return;
       archiveDiv.textContent = 'Laen arhiivi...';
 
       try {
@@ -239,7 +273,6 @@
           return;
         }
 
-        // Build table
         let html = '<table border="1" cellpadding="5" cellspacing="0" style="width:100%; max-width:550px;">';
         html += '<tr><th>Arve nr.</th><th>Nimi</th><th>E-mail</th><th>Link</th></tr>';
 
@@ -248,7 +281,6 @@
           let name = '';
           let email = '';
 
-          // parse JSON from file.description
           if (file.description) {
             try {
               const meta = JSON.parse(file.description);
@@ -256,7 +288,7 @@
               name = meta.name || '';
               email = meta.email || '';
             } catch (err) {
-              // if invalid JSON, ignore
+              // skip
             }
           }
 
