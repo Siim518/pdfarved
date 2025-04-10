@@ -35,7 +35,7 @@ exports.handler = async (event) => {
     // We'll start both columns at y=140
     const topOfColumns = 140;
 
-    // Left column: Seller info
+    // Left column: seller info
     doc.fontSize(10);
 
     // Bold "Benaks OÜ"
@@ -61,10 +61,11 @@ Viimsi vald, Harju maakond, 74016`,
     let clientX = 300;
     let clientY = topOfColumns;
 
-    // BOLD for ARVE NR
-    doc.font('Helvetica-Bold').fontSize(10)
+    // **Bold 18pt** for ARVE NR
+    doc.font('Helvetica-Bold').fontSize(18)
        .text(`ARVE NR: ${arve_nr || '-'}`, clientX, clientY);
-    clientY += 14;
+    // Let's move down more since it's bigger
+    clientY += 24;
 
     // Normal for the rest of client info
     doc.font('Helvetica').fontSize(10);
@@ -94,21 +95,18 @@ Viimsi vald, Harju maakond, 74016`,
     let totalNet = 0;
     let totalGross = 0;
 
-    // 3) Product Rows with multi-line fix
+    // Multi-line fix for product rows
     products.forEach(p => {
       const rowStart = doc.y;
 
-      // measure how tall name might be
       const nameHeight = doc.heightOfString(p.name, { width: 150 });
 
-      // net/gross calculations
       const netEach = p.price_gross / 1.22;
       const lineNet = netEach * p.qty;
       const lineGross = p.price_gross * p.qty;
       totalNet += lineNet;
       totalGross += lineGross;
 
-      // place columns at rowStart
       doc.text(p.name,       50, rowStart, { width: 150 });
       doc.text(String(p.qty),210, rowStart, { width: 50 });
       doc.text(`${lineNet.toFixed(2)} €`,   270, rowStart, { width: 100 });
@@ -146,7 +144,7 @@ Viimsi vald, Harju maakond, 74016`,
     doc.end();
     await new Promise(resolve => writeStream.on('finish', resolve));
 
-    // 4) Upload to Google Drive (with metadata in description)
+    // 4) Upload to Google Drive (with metadata)
     const folderId = '13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO';
     const auth = new google.auth.JWT(
       process.env.GOOGLE_CLIENT_EMAIL,
@@ -187,7 +185,6 @@ Viimsi vald, Harju maakond, 74016`,
       attachments: [{ filename: fileName, path: filePath }]
     });
 
-    // Done
     return {
       statusCode: 200,
       body: JSON.stringify({ success: true })
