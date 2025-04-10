@@ -52,11 +52,17 @@ Viimsi vald, Harju maakond, 74016`;
     let clientX = 300;
     let clientY = topOfColumns;
 
-    doc.text(`ARVE NR: ${arve_nr || '-'}`, clientX, clientY);       clientY += 14;
+    // **BOLD** for ARVE NR
+    doc.font('Helvetica-Bold').fontSize(10)
+       .text(`ARVE NR: ${arve_nr || '-'}`, clientX, clientY);
+    clientY += 14;
+
+    // Switch back to normal for the rest
+    doc.font('Helvetica').fontSize(10);
     doc.text(`Saaja nimi: ${saaja_nimi || '-'}`, clientX, clientY); clientY += 14;
     doc.text(`Saaja firma: ${saaja_firma || '-'}`, clientX, clientY); clientY += 14;
     doc.text(`Saaja reg.nr: ${saaja_regnr || '-'}`, clientX, clientY); clientY += 14;
-    doc.text(`Saaja KMKR: ${saaja_kmkr || '-'}`, clientX, clientY); clientY += 14;
+    doc.text(`Saaja KMKR: ${saaja_kmkr || '-'}`, clientX, clientY);    clientY += 14;
     doc.text(`Saaja aadress: ${saaja_aadress || '-'}`, clientX, clientY); clientY += 14;
 
     const finalClientY = clientY;
@@ -64,13 +70,23 @@ Viimsi vald, Harju maakond, 74016`;
 
     // -- TABLE HEADERS --
     const headingY = doc.y;
-    doc.text('Nimi',        50, headingY, { width: 150 });
-    doc.text('Kogus',       210, headingY, { width: 50 });
-    doc.text('Hind ilma KM',270, headingY, { width: 100 });
-    doc.text('Hind koos KM',390, headingY, { width: 100 });
 
+    // BOLD table headers
+    doc.font('Helvetica-Bold').fontSize(10);
+
+    doc.text('Nimi',         50, headingY, { width: 150 });
+    doc.text('Kogus',        210, headingY, { width: 50 });
+    doc.text('Hind ilma KM', 270, headingY, { width: 100 });
+    doc.text('Hind koos KM', 390, headingY, { width: 100 });
+
+    // underline
     doc.moveTo(50, headingY + 12).lineTo(500, headingY + 12).stroke();
+
+    // Move down for row data
     doc.y = headingY + 20;
+
+    // Switch back to normal font for product rows
+    doc.font('Helvetica').fontSize(10);
 
     let totalNet = 0;
     let totalGross = 0;
@@ -79,7 +95,7 @@ Viimsi vald, Harju maakond, 74016`;
     products.forEach(p => {
       const rowStart = doc.y;
 
-      // measure how tall name will be if it wraps
+      // measure how tall name might be
       const nameHeight = doc.heightOfString(p.name, {
         width: 150
       });
@@ -91,22 +107,20 @@ Viimsi vald, Harju maakond, 74016`;
       totalNet += lineNet;
       totalGross += lineGross;
 
-      // place columns at rowStart
-      doc.text(p.name,  50, rowStart, { width: 150 });
-      doc.text(String(p.qty), 210, rowStart, { width: 50 });
+      // print columns at rowStart
+      doc.text(p.name,           50, rowStart, { width: 150 });
+      doc.text(String(p.qty),    210, rowStart, { width: 50 });
       doc.text(`${lineNet.toFixed(2)} €`,   270, rowStart, { width: 100 });
       doc.text(`${lineGross.toFixed(2)} €`, 390, rowStart, { width: 100 });
 
-      // rowHeight = nameHeight (only name might wrap). 
-      // If other columns can also wrap, measure them too and use the max.
+      // rowHeight => nameHeight (only name might wrap)
       const rowHeight = nameHeight;
-
-      // Move down for next row
-      doc.y = rowStart + rowHeight + 4; // add a small gap
+      doc.y = rowStart + rowHeight + 4; // small gap
     });
 
     // Totals
     const vat = totalGross - totalNet;
+
     doc.moveDown(1);
     const lineY = doc.y;
     doc.moveTo(50, lineY).lineTo(500, lineY).stroke();
@@ -123,10 +137,11 @@ Viimsi vald, Harju maakond, 74016`;
     doc.moveDown(2);
     doc.fontSize(9).text('Benaks OÜ IBAN: EE832200221051880171');
 
+    // finalize PDF
     doc.end();
     await new Promise(resolve => writeStream.on('finish', resolve));
 
-    // 4) Upload to Google Drive
+    // 4) Upload to Google Drive (with metadata in description)
     const folderId = '13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO';
     const auth = new google.auth.JWT(
       process.env.GOOGLE_CLIENT_EMAIL,
