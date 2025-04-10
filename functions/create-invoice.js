@@ -32,19 +32,29 @@ exports.handler = async (event) => {
     const logoPath = path.join(__dirname, 'benaks-logo.png');
     doc.image(logoPath, 50, 50, { width: 80 });
 
+    // We'll start both columns at y=140
     const topOfColumns = 140;
 
-    // Left column: seller info
+    // Left column: Seller info
     doc.fontSize(10);
-    const sellerInfo = `Benaks OÜ
-Reg.nr. 12069824
+
+    // Bold "Benaks OÜ"
+    doc.font('Helvetica-Bold').text('Benaks OÜ', 50, topOfColumns, { width: 200 });
+    // Switch back to normal
+    doc.font('Helvetica');
+
+    // Print the rest of the info below
+    doc.text(
+      `Reg.nr. 12069824
 KMKR nr. EE101433055
 Telefon: +372 5182792
 E-post: benaksinfo@gmail.com
 Hoburaua tee 8a, Randvere küla,
-Viimsi vald, Harju maakond, 74016`;
-
-    doc.text(sellerInfo, 50, topOfColumns, { width: 200 });
+Viimsi vald, Harju maakond, 74016`,
+      50,
+      doc.y,
+      { width: 200 }
+    );
     const finalSellerY = doc.y;
 
     // Right column: ARVE NR + client info
@@ -58,7 +68,7 @@ Viimsi vald, Harju maakond, 74016`;
 
     // Normal for the rest of client info
     doc.font('Helvetica').fontSize(10);
-    doc.text(`Saaja nimi: ${saaja_nimi || '-'}`, clientX, clientY); clientY += 14;
+    doc.text(`Saaja nimi: ${saaja_nimi || '-'}`, clientX, clientY);    clientY += 14;
     doc.text(`Saaja firma: ${saaja_firma || '-'}`, clientX, clientY); clientY += 14;
     doc.text(`Saaja reg.nr: ${saaja_regnr || '-'}`, clientX, clientY); clientY += 14;
     doc.text(`Saaja KMKR: ${saaja_kmkr || '-'}`, clientX, clientY);    clientY += 14;
@@ -78,29 +88,33 @@ Viimsi vald, Harju maakond, 74016`;
     doc.moveTo(50, headingY + 12).lineTo(500, headingY + 12).stroke();
     doc.y = headingY + 20;
 
+    // Switch back to normal for product rows
     doc.font('Helvetica').fontSize(10);
 
     let totalNet = 0;
     let totalGross = 0;
 
-    // Multi-line fix for product rows
+    // 3) Product Rows with multi-line fix
     products.forEach(p => {
       const rowStart = doc.y;
 
+      // measure how tall name might be
       const nameHeight = doc.heightOfString(p.name, { width: 150 });
 
+      // net/gross calculations
       const netEach = p.price_gross / 1.22;
       const lineNet = netEach * p.qty;
       const lineGross = p.price_gross * p.qty;
       totalNet += lineNet;
       totalGross += lineGross;
 
-      doc.text(p.name,  50, rowStart, { width: 150 });
-      doc.text(String(p.qty), 210, rowStart, { width: 50 });
+      // place columns at rowStart
+      doc.text(p.name,       50, rowStart, { width: 150 });
+      doc.text(String(p.qty),210, rowStart, { width: 50 });
       doc.text(`${lineNet.toFixed(2)} €`,   270, rowStart, { width: 100 });
       doc.text(`${lineGross.toFixed(2)} €`, 390, rowStart, { width: 100 });
 
-      doc.y = rowStart + nameHeight + 4; 
+      doc.y = rowStart + nameHeight + 4; // small gap
     });
 
     const vat = totalGross - totalNet;
@@ -128,10 +142,11 @@ Viimsi vald, Harju maakond, 74016`;
     doc.fontSize(9)
        .text('Benaks OÜ IBAN: EE832200221051880171');
 
+    // finalize PDF
     doc.end();
     await new Promise(resolve => writeStream.on('finish', resolve));
 
-    // 4) Upload to Google Drive
+    // 4) Upload to Google Drive (with metadata in description)
     const folderId = '13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO';
     const auth = new google.auth.JWT(
       process.env.GOOGLE_CLIENT_EMAIL,
@@ -172,7 +187,7 @@ Viimsi vald, Harju maakond, 74016`;
       attachments: [{ filename: fileName, path: filePath }]
     });
 
-    // Return success
+    // Done
     return {
       statusCode: 200,
       body: JSON.stringify({ success: true })
