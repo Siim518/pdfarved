@@ -35,7 +35,6 @@ exports.handler = async (event) => {
     const topOfColumns = 140;
 
     // Left column: seller info
-    const sellerX = 50;
     doc.fontSize(10);
     const sellerInfo = `Benaks OÜ
 Reg.nr. 12069824
@@ -45,19 +44,19 @@ E-post: benaksinfo@gmail.com
 Hoburaua tee 8a, Randvere küla,
 Viimsi vald, Harju maakond, 74016`;
 
-    doc.text(sellerInfo, sellerX, topOfColumns, { width: 200 });
+    doc.text(sellerInfo, 50, topOfColumns, { width: 200 });
     const finalSellerY = doc.y;
 
     // Right column: ARVE NR + client info
     let clientX = 300;
     let clientY = topOfColumns;
 
-    // **BOLD** for ARVE NR
+    // BOLD for ARVE NR
     doc.font('Helvetica-Bold').fontSize(10)
        .text(`ARVE NR: ${arve_nr || '-'}`, clientX, clientY);
     clientY += 14;
 
-    // Switch back to normal for the rest
+    // Normal for the rest of client info
     doc.font('Helvetica').fontSize(10);
     doc.text(`Saaja nimi: ${saaja_nimi || '-'}`, clientX, clientY); clientY += 14;
     doc.text(`Saaja firma: ${saaja_firma || '-'}`, clientX, clientY); clientY += 14;
@@ -70,55 +69,40 @@ Viimsi vald, Harju maakond, 74016`;
 
     // -- TABLE HEADERS --
     const headingY = doc.y;
-
-    // BOLD table headers
     doc.font('Helvetica-Bold').fontSize(10);
-
     doc.text('Nimi',         50, headingY, { width: 150 });
     doc.text('Kogus',        210, headingY, { width: 50 });
     doc.text('Hind ilma KM', 270, headingY, { width: 100 });
     doc.text('Hind koos KM', 390, headingY, { width: 100 });
 
-    // underline
     doc.moveTo(50, headingY + 12).lineTo(500, headingY + 12).stroke();
-
-    // Move down for row data
     doc.y = headingY + 20;
 
-    // Switch back to normal font for product rows
     doc.font('Helvetica').fontSize(10);
 
     let totalNet = 0;
     let totalGross = 0;
 
-    // 3) Product Rows with multi-line fix
+    // Multi-line fix for product rows
     products.forEach(p => {
       const rowStart = doc.y;
 
-      // measure how tall name might be
-      const nameHeight = doc.heightOfString(p.name, {
-        width: 150
-      });
+      const nameHeight = doc.heightOfString(p.name, { width: 150 });
 
-      // net/gross calculations
       const netEach = p.price_gross / 1.22;
       const lineNet = netEach * p.qty;
       const lineGross = p.price_gross * p.qty;
       totalNet += lineNet;
       totalGross += lineGross;
 
-      // print columns at rowStart
-      doc.text(p.name,           50, rowStart, { width: 150 });
-      doc.text(String(p.qty),    210, rowStart, { width: 50 });
+      doc.text(p.name,  50, rowStart, { width: 150 });
+      doc.text(String(p.qty), 210, rowStart, { width: 50 });
       doc.text(`${lineNet.toFixed(2)} €`,   270, rowStart, { width: 100 });
       doc.text(`${lineGross.toFixed(2)} €`, 390, rowStart, { width: 100 });
 
-      // rowHeight => nameHeight (only name might wrap)
-      const rowHeight = nameHeight;
-      doc.y = rowStart + rowHeight + 4; // small gap
+      doc.y = rowStart + nameHeight + 4; 
     });
 
-    // Totals
     const vat = totalGross - totalNet;
 
     doc.moveDown(1);
@@ -128,20 +112,26 @@ Viimsi vald, Harju maakond, 74016`;
 
     doc.text(`Kokku ilma KM: ${totalNet.toFixed(2)} €`);
     doc.text(`KM (22%): ${vat.toFixed(2)} €`);
-    doc.text(`Kokku koos KM: ${totalGross.toFixed(2)} €`);
+
+    // BOLD for "Kokku koos KM"
+    doc.font('Helvetica-Bold').fontSize(10)
+       .text(`Kokku koos KM: ${totalGross.toFixed(2)} €`);
+
+    // Switch back to normal
+    doc.font('Helvetica').fontSize(10);
 
     doc.moveDown(2);
     doc.text('Maksetähtaeg: 7 päeva');
     doc.text('Viivis: 0.05% päevas');
 
     doc.moveDown(2);
-    doc.fontSize(9).text('Benaks OÜ IBAN: EE832200221051880171');
+    doc.fontSize(9)
+       .text('Benaks OÜ IBAN: EE832200221051880171');
 
-    // finalize PDF
     doc.end();
     await new Promise(resolve => writeStream.on('finish', resolve));
 
-    // 4) Upload to Google Drive (with metadata in description)
+    // 4) Upload to Google Drive
     const folderId = '13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO';
     const auth = new google.auth.JWT(
       process.env.GOOGLE_CLIENT_EMAIL,
@@ -182,7 +172,7 @@ Viimsi vald, Harju maakond, 74016`;
       attachments: [{ filename: fileName, path: filePath }]
     });
 
-    // Done
+    // Return success
     return {
       statusCode: 200,
       body: JSON.stringify({ success: true })
