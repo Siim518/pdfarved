@@ -6,13 +6,14 @@ const path = require('path');
 
 exports.handler = async (event) => {
   try {
-    // 1) Parse incoming form data
+    // 1) Parse form data
     const data = JSON.parse(event.body);
     const {
       arve_nr, saaja_nimi, saaja_firma, saaja_regnr, saaja_kmkr, saaja_aadress,
       products, email
     } = data;
 
+    // Basic checks
     if (!Array.isArray(products) || products.length === 0) {
       throw new Error('No products provided');
     }
@@ -20,20 +21,20 @@ exports.handler = async (event) => {
       throw new Error('No email provided');
     }
 
-    // 2) Create PDF
+    // 2) Create PDF in /tmp
     const doc = new PDFDocument({ margin: 50 });
     const fileName = `invoice-${arve_nr || 'no-number'}.pdf`;
     const filePath = `/tmp/${fileName}`;
     const writeStream = fs.createWriteStream(filePath);
     doc.pipe(writeStream);
 
-    // 3) Logo + two-column layout
+    // -- LOGO + TWO COLUMN LAYOUT --
     const logoPath = path.join(__dirname, 'benaks-logo.png');
     doc.image(logoPath, 50, 50, { width: 80 });
 
     const topOfColumns = 140;
 
-    // Left column: Seller info
+    // Left column: seller info
     const sellerX = 50;
     doc.fontSize(10);
     const sellerInfo = `Benaks OÜ
@@ -47,9 +48,10 @@ Viimsi vald, Harju maakond, 74016`;
     doc.text(sellerInfo, sellerX, topOfColumns, { width: 200 });
     const finalSellerY = doc.y;
 
-    // Right column: ARVE NR + Client info
+    // Right column: ARVE NR + client info
     let clientX = 300;
     let clientY = topOfColumns;
+
     doc.text(`ARVE NR: ${arve_nr || '-'}`, clientX, clientY);       clientY += 14;
     doc.text(`Saaja nimi: ${saaja_nimi || '-'}`, clientX, clientY); clientY += 14;
     doc.text(`Saaja firma: ${saaja_firma || '-'}`, clientX, clientY); clientY += 14;
@@ -58,15 +60,14 @@ Viimsi vald, Harju maakond, 74016`;
     doc.text(`Saaja aadress: ${saaja_aadress || '-'}`, clientX, clientY); clientY += 14;
 
     const finalClientY = clientY;
-    const endOfColumns = Math.max(finalSellerY, finalClientY);
-    doc.y = endOfColumns + 30;
+    doc.y = Math.max(finalSellerY, finalClientY) + 30;
 
-    // Table headers
+    // -- TABLE HEADERS --
     const headingY = doc.y;
-    doc.text('Nimi', 50, headingY, { width: 150 });
-    doc.text('Kogus', 210, headingY, { width: 50 });
-    doc.text('Hind ilma KM', 270, headingY, { width: 100 });
-    doc.text('Hind koos KM', 390, headingY, { width: 100 });
+    doc.text('Nimi',        50, headingY, { width: 150 });
+    doc.text('Kogus',       210, headingY, { width: 50 });
+    doc.text('Hind ilma KM',270, headingY, { width: 100 });
+    doc.text('Hind koos KM',390, headingY, { width: 100 });
 
     doc.moveTo(50, headingY + 12).lineTo(500, headingY + 12).stroke();
     doc.y = headingY + 20;
@@ -74,43 +75,38 @@ Viimsi vald, Harju maakond, 74016`;
     let totalNet = 0;
     let totalGross = 0;
 
-    // 4) Products loop with multi-line fix
-    products.forEach((p) => {
-      // Start of this row
+    // 3) Product Rows with multi-line fix
+    products.forEach(p => {
       const rowStart = doc.y;
 
-      // 4A) measure name text height
+      // measure how tall name will be if it wraps
       const nameHeight = doc.heightOfString(p.name, {
-        width: 150, // same width as when printing
+        width: 150
       });
 
-      // Calculate net/gross
+      // net/gross calculations
       const netEach = p.price_gross / 1.22;
       const lineNet = netEach * p.qty;
       const lineGross = p.price_gross * p.qty;
-
       totalNet += lineNet;
       totalGross += lineGross;
 
-      // 4B) Print each column at rowStart
-      doc.text(p.name, 50, rowStart, { width: 150 });
-      doc.text(p.qty.toString(), 210, rowStart, { width: 50 });
-      doc.text(lineNet.toFixed(2) + ' €', 270, rowStart, { width: 100 });
-      doc.text(lineGross.toFixed(2) + ' €', 390, rowStart, { width: 100 });
+      // place columns at rowStart
+      doc.text(p.name,  50, rowStart, { width: 150 });
+      doc.text(String(p.qty), 210, rowStart, { width: 50 });
+      doc.text(`${lineNet.toFixed(2)} €`,   270, rowStart, { width: 100 });
+      doc.text(`${lineGross.toFixed(2)} €`, 390, rowStart, { width: 100 });
 
-      // 4C) pick the row's height (assuming only name might wrap)
-      const rowHeight = nameHeight; 
-      // if you suspect other columns wrap, you'd measure them similarly 
-      // and do rowHeight = Math.max(nameHeight, otherHeights)
+      // rowHeight = nameHeight (only name might wrap). 
+      // If other columns can also wrap, measure them too and use the max.
+      const rowHeight = nameHeight;
 
-      // 4D) set doc.y for the next row
-      // add a small gap (like +4) if you want more space
-      doc.y = rowStart + rowHeight + 4;
+      // Move down for next row
+      doc.y = rowStart + rowHeight + 4; // add a small gap
     });
 
     // Totals
     const vat = totalGross - totalNet;
-
     doc.moveDown(1);
     const lineY = doc.y;
     doc.moveTo(50, lineY).lineTo(500, lineY).stroke();
@@ -127,11 +123,10 @@ Viimsi vald, Harju maakond, 74016`;
     doc.moveDown(2);
     doc.fontSize(9).text('Benaks OÜ IBAN: EE832200221051880171');
 
-    // finalize PDF
     doc.end();
     await new Promise(resolve => writeStream.on('finish', resolve));
 
-    // 5) Drive upload with description
+    // 4) Upload to Google Drive
     const folderId = '13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO';
     const auth = new google.auth.JWT(
       process.env.GOOGLE_CLIENT_EMAIL,
@@ -141,12 +136,7 @@ Viimsi vald, Harju maakond, 74016`;
     );
     const drive = google.drive({ version: 'v3', auth });
 
-    const metaObj = {
-      invoiceNr: arve_nr,
-      name: saaja_nimi,
-      email
-    };
-
+    const metaObj = { invoiceNr: arve_nr, name: saaja_nimi, email };
     await drive.files.create({
       requestBody: {
         name: fileName,
@@ -160,7 +150,7 @@ Viimsi vald, Harju maakond, 74016`;
       }
     });
 
-    // 6) Send Email
+    // 5) Send Email
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -177,14 +167,13 @@ Viimsi vald, Harju maakond, 74016`;
       attachments: [{ filename: fileName, path: filePath }]
     });
 
-    // Return success
+    // Done
     return {
       statusCode: 200,
       body: JSON.stringify({ success: true })
     };
 
   } catch (err) {
-    // Return JSON on error
     return {
       statusCode: 500,
       body: JSON.stringify({ error: err.message })
