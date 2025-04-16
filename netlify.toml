@@ -1,0 +1,13 @@
+[build]
+  publish = "."
+  functions = "functions"
+
+[functions]
+  node_bundler = "zisi"
+  included_files = [
+    "functions/benaks-logo.png"
+  ]
+
+[dev]
+  functions = "functions"
+  publish = "."
