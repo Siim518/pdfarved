@@ -1,151 +1,128 @@
 const PDFDocument = require('pdfkit');
-const nodemailer = require('nodemailer');
-const { google } = require('googleapis');
-const fs = require('fs');
-const path = require('path');
+const nodemailer  = require('nodemailer');
+const { google }  = require('googleapis');
+const fs          = require('fs');
+const path        = require('path');
 
 exports.handler = async (event) => {
   try {
-    // 1) Parse form data
+    /* ------------------------------------------------------------
+       0.  Parse incoming JSON
+    ------------------------------------------------------------ */
     const data = JSON.parse(event.body);
     const {
       arve_nr, saaja_nimi, saaja_firma, saaja_regnr, saaja_kmkr, saaja_aadress,
       products, email
     } = data;
 
-    // Basic checks
-    if (!Array.isArray(products) || products.length === 0) {
+    if (!Array.isArray(products) || products.length === 0)
       throw new Error('No products provided');
-    }
-    if (!email) {
+    if (!email)
       throw new Error('No email provided');
-    }
 
-    // NEW: Build date string (dd-mm-yyyy)
-    const now = new Date();
-    const day = String(now.getDate()).padStart(2, '0');
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const year = now.getFullYear();
-    const dateStr = `${day}-${month}-${year}`;
+    /* ------------------------------------------------------------
+       1.  Constants for the new VAT
+    ------------------------------------------------------------ */
+    const VAT_RATE   = 0.24;          // 24 %
+    const VAT_FACTOR = 1 + VAT_RATE;  // 1.24 for net ⇐ gross
 
-    // 2) Create PDF in /tmp
-    const doc = new PDFDocument({ margin: 50 });
+    /* ------------------------------------------------------------
+       2.  Today’s date string  (dd-mm-yyyy)
+    ------------------------------------------------------------ */
+    const now   = new Date();
+    const dateStr =
+      `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+
+    /* ------------------------------------------------------------
+       3.  Create PDF
+    ------------------------------------------------------------ */
+    const doc      = new PDFDocument({ margin: 50 });
     const fileName = `invoice-${arve_nr || 'no-number'}.pdf`;
     const filePath = `/tmp/${fileName}`;
-    const writeStream = fs.createWriteStream(filePath);
-    doc.pipe(writeStream);
+    const stream   = fs.createWriteStream(filePath);
+    doc.pipe(stream);
 
-    // -- LOGO + TWO COLUMN LAYOUT --
-    const logoPath = path.join(__dirname, 'benaks-logo.png');
-    doc.image(logoPath, 50, 50, { width: 80 });
+    /*  -- LOGO & columns -------------------------------------------------- */
+    doc.image(path.join(__dirname, 'benaks-logo.png'), 50, 50, { width: 80 });
 
-    // We'll start both columns at y=140
-    const topOfColumns = 140;
-
-    // Left column: Seller info
-    doc.fontSize(10);
-
-    // Bold "Benaks OÜ"
-    doc.font('Helvetica-Bold').text('Benaks OÜ', 50, topOfColumns, { width: 200 });
-    // Switch back to normal
-    doc.font('Helvetica');
-
-    // Print the rest of the info below
-    doc.text(
-      `Reg.nr. 12069824
+    /* Seller column (left) */
+    const topY = 140;
+    doc.fontSize(10).font('Helvetica-Bold')
+       .text('Benaks OÜ', 50, topY, { width: 200 })
+       .font('Helvetica')
+       .text(
+`Reg.nr. 12069824
 KMKR nr. EE101433055
 Telefon: +372 5182792
 E-post: benaksinfo@gmail.com
 Hoburaua tee 8a, Randvere küla,
 Viimsi vald, Harju maakond, 74016`,
-      50,
-      doc.y,
-      { width: 200 }
-    );
-    const finalSellerY = doc.y;
+        50, doc.y, { width: 200 });
 
-    // Right column: ARVE NR + client info
-    let clientX = 300;
-    let clientY = topOfColumns;
+    const leftEndY = doc.y;
 
-    // **Bold 18pt** for ARVE NR
+    /* Client column (right) */
+    let cx = 300, cy = topY;
     doc.font('Helvetica-Bold').fontSize(18)
-       .text(`ARVE NR: ${arve_nr || '-'}`, clientX, clientY);
-    // Move down more for bigger text
-    clientY += 24;
-
-    // Normal for the rest of client info
+       .text(`ARVE NR: ${arve_nr || '-'}`, cx, cy);
+    cy += 24;
     doc.font('Helvetica').fontSize(10);
-    doc.text(`Saaja nimi: ${saaja_nimi || '-'}`, clientX, clientY);    clientY += 14;
-    doc.text(`Saaja firma: ${saaja_firma || '-'}`, clientX, clientY); clientY += 14;
-    doc.text(`Saaja reg.nr: ${saaja_regnr || '-'}`, clientX, clientY); clientY += 14;
-    doc.text(`Saaja KMKR: ${saaja_kmkr || '-'}`, clientX, clientY);    clientY += 14;
-    doc.text(`Saaja aadress: ${saaja_aadress || '-'}`, clientX, clientY); clientY += 14;
+    doc.text(`Saaja nimi: ${saaja_nimi || '-'}`,  cx, cy); cy += 14;
+    doc.text(`Saaja firma: ${saaja_firma || '-'}`,cx, cy); cy += 14;
+    doc.text(`Saaja reg.nr: ${saaja_regnr || '-'}`,cx, cy); cy += 14;
+    doc.text(`Saaja KMKR: ${saaja_kmkr || '-'}`,  cx, cy); cy += 14;
+    doc.text(`Saaja aadress: ${saaja_aadress || '-'}`, cx, cy); cy += 14;
 
-    const finalClientY = clientY;
-    doc.y = Math.max(finalSellerY, finalClientY) + 30;
+    doc.y = Math.max(leftEndY, cy) + 30;
 
-    // -- TABLE HEADERS --
-    const headingY = doc.y;
-    doc.font('Helvetica-Bold').fontSize(10);
-    doc.text('Nimi',         50, headingY, { width: 150 });
-    doc.text('Kogus',        210, headingY, { width: 50 });
-    doc.text('Hind ilma KM', 270, headingY, { width: 100 });
-    doc.text('Hind koos KM', 390, headingY, { width: 100 });
+    /* -- Table headers ---------------------------------------------------- */
+    const hY = doc.y;
+    doc.font('Helvetica-Bold');
+    doc.text('Nimi',          50, hY, { width: 150 });
+    doc.text('Kogus',         210, hY, { width: 50  });
+    doc.text('Hind ilma KM',  270, hY, { width: 100 });
+    doc.text('Hind koos KM',  390, hY, { width: 100 });
+    doc.moveTo(50, hY + 12).lineTo(500, hY + 12).stroke();
+    doc.y = hY + 20;
+    doc.font('Helvetica');
 
-    doc.moveTo(50, headingY + 12).lineTo(500, headingY + 12).stroke();
-    doc.y = headingY + 20;
+    /* -- Product rows ----------------------------------------------------- */
+    let totalNet = 0, totalGross = 0;
 
-    // Switch back to normal for product rows
-    doc.font('Helvetica').fontSize(10);
-
-    let totalNet = 0;
-    let totalGross = 0;
-
-    // Multi-line fix for product rows
     products.forEach(p => {
-      const rowStart = doc.y;
-
+      const rowY = doc.y;
       const nameHeight = doc.heightOfString(p.name, { width: 150 });
 
-      const netEach = p.price_gross / 1.22;
-      const lineNet = netEach * p.qty;
+      const netEach   = p.price_gross / VAT_FACTOR;   // divide by 1.24
+      const lineNet   = netEach * p.qty;
       const lineGross = p.price_gross * p.qty;
-      totalNet += lineNet;
+
+      totalNet   += lineNet;
       totalGross += lineGross;
 
-      doc.text(p.name,       50, rowStart, { width: 150 });
-      doc.text(String(p.qty),210, rowStart, { width: 50 });
-      doc.text(`${lineNet.toFixed(2)} €`,   270, rowStart, { width: 100 });
-      doc.text(`${lineGross.toFixed(2)} €`, 390, rowStart, { width: 100 });
+      doc.text(p.name,        50, rowY, { width: 150 });
+      doc.text(String(p.qty), 210, rowY, { width: 50  });
+      doc.text(`${lineNet.toFixed(2)} €`,   270, rowY, { width: 100 });
+      doc.text(`${lineGross.toFixed(2)} €`, 390, rowY, { width: 100 });
 
-      doc.y = rowStart + nameHeight + 4; // small gap
+      doc.y = rowY + nameHeight + 4;
     });
 
+    /* -- Totals & footer -------------------------------------------------- */
     const vat = totalGross - totalNet;
 
     doc.moveDown(1);
-    const lineY = doc.y;
-    doc.moveTo(50, lineY).lineTo(500, lineY).stroke();
+    doc.moveTo(50, doc.y).lineTo(500, doc.y).stroke();
     doc.moveDown(1);
 
     doc.text(`Kokku ilma KM: ${totalNet.toFixed(2)} €`);
-    doc.text(`KM (22%): ${vat.toFixed(2)} €`);
+    doc.text(`KM (24%): ${vat.toFixed(2)} €`);
+    doc.font('Helvetica-Bold')
+       .text(`Kokku koos KM: ${totalGross.toFixed(2)} €`)
+       .font('Helvetica');
 
-    // BOLD for "Kokku koos KM"
-    doc.font('Helvetica-Bold').fontSize(10)
-       .text(`Kokku koos KM: ${totalGross.toFixed(2)} €`);
-
-    // Switch back to normal
-    doc.font('Helvetica').fontSize(10);
-
-    // Move down a bit
     doc.moveDown(2);
-
-    // NEW: Print the date above Maksetähtaeg
     doc.text(`Arve kuupäev: ${dateStr}`);
-
-    // Then the rest
     doc.text('Maksetähtaeg: 7 päeva');
     doc.text('Viivis: 0.05% päevas');
 
@@ -153,13 +130,13 @@ Viimsi vald, Harju maakond, 74016`,
     doc.fontSize(9)
        .text('Benaks OÜ IBAN: EE832200221051880171');
 
-    // finalize PDF
+    /* finish PDF ---------------------------------------------------------- */
     doc.end();
-    await new Promise(resolve => writeStream.on('finish', resolve));
+    await new Promise(r => stream.on('finish', r));
 
-    // 4) Upload to Google Drive (with metadata)
+    /* -- Upload to Drive -------------------------------------------------- */
     const folderId = '13ZfoFPBlxuoA9FnHPXf86B-JmLDnLOaO';
-    const auth = new google.auth.JWT(
+    const auth  = new google.auth.JWT(
       process.env.GOOGLE_CLIENT_EMAIL,
       null,
       process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
@@ -167,27 +144,20 @@ Viimsi vald, Harju maakond, 74016`,
     );
     const drive = google.drive({ version: 'v3', auth });
 
-    const metaObj = { invoiceNr: arve_nr, name: saaja_nimi, email };
     await drive.files.create({
       requestBody: {
         name: fileName,
         mimeType: 'application/pdf',
         parents: [folderId],
-        description: JSON.stringify(metaObj)
+        description: JSON.stringify({ invoiceNr: arve_nr, name: saaja_nimi, email })
       },
-      media: {
-        mimeType: 'application/pdf',
-        body: fs.createReadStream(filePath)
-      }
+      media: { mimeType: 'application/pdf', body: fs.createReadStream(filePath) }
     });
 
-    // 5) Send Email
+    /* -- Send email ------------------------------------------------------- */
     const transporter = nodemailer.createTransport({
       service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS
-      }
+      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS }
     });
 
     await transporter.sendMail({
@@ -198,16 +168,9 @@ Viimsi vald, Harju maakond, 74016`,
       attachments: [{ filename: fileName, path: filePath }]
     });
 
-    // Done
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ success: true })
-    };
+    return { statusCode: 200, body: JSON.stringify({ success: true }) };
 
   } catch (err) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message })
-    };
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };
