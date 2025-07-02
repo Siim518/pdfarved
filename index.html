@@ -5,7 +5,7 @@
 <title>Arve Generator (Mobile Friendly)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
-  /* ---------- existing styles ---------- */
+  /* ---- existing styles ---- */
   body{background:#f8e8d5;font-family:Arial,sans-serif;margin:0;padding:0;text-align:center}
   header{margin:20px 0}
   header img{width:100px;display:block;margin:0 auto}
@@ -21,7 +21,7 @@
   #status{margin-top:15px;font-weight:bold}
   .archive-container{width:90%;max-width:550px;background:#fff;margin:0 auto 30px;padding:20px;border-radius:8px;text-align:left}
 
-  /* ---------- pagination styles ---------- */
+  /* ---- pagination styles ---- */
   .pager{margin-top:12px;text-align:center}
   .pager button{margin:0 4px;padding:4px 10px;font-size:14px;border:1px solid #445e00;background:#fff;color:#445e00;cursor:pointer;border-radius:4px}
   .pager button.active{background:#445e00;color:#fff}
@@ -31,13 +31,48 @@
 <body>
 
 <header>
-  <img src="benaks-logo.png" alt="Benaks Logo"/>
+  <img src="benaks-logo.png" alt="Benaks Logo">
   <h1>Arve Vorm (Arve loomine/saatmine ja arhiiv)</h1>
 </header>
 
-<!-- ---------- FORM (unchanged) ---------- -->
+<!-- ---------- FORM ---------- -->
 <div class="container">
-  <!-- … existing form markup … -->
+  <form id="invoiceForm">
+    <label>Arve nr:</label>
+    <input type="text" name="arve_nr" autocomplete="off">
+
+    <label>Saaja nimi:</label>
+    <input type="text" name="saaja_nimi" autocomplete="name">
+
+    <label>Saaja firma:</label>
+    <input type="text" name="saaja_firma" autocomplete="organization">
+
+    <label>Saaja reg.nr:</label>
+    <input type="text" name="saaja_regnr" autocomplete="off">
+
+    <label>Saaja KMKR:</label>
+    <input type="text" name="saaja_kmkr" autocomplete="off">
+
+    <label>Saaja aadress:</label>
+    <textarea name="saaja_aadress" rows="2" autocomplete="street-address"></textarea>
+
+    <h3>Tooted:</h3>
+    <div id="products">
+      <div class="product-group">
+        <textarea name="product_name" placeholder="Nimi" required
+                  oninput="autoExpand(this)"></textarea>
+        <input type="number" name="product_qty" placeholder="Kogus" required>
+        <input type="number" step="0.01" name="product_price_gross" placeholder="Hind (koos KM)" required>
+      </div>
+    </div>
+    <button type="button" onclick="addProduct()">Lisa toode</button>
+
+    <h3>Saaja e-mail:</h3>
+    <input type="email" name="email" autocomplete="email" required>
+
+    <button type="submit">Saada arve PDF</button>
+  </form>
+  <p id="status"></p>
 </div>
 
 <!-- ---------- ARCHIVE ---------- -->
@@ -48,20 +83,70 @@
 </div>
 
 <script>
-/* --- auto-expand textarea --- */
+/* ========= helper: auto-expand textarea ========= */
 function autoExpand(t){t.style.height='auto';t.style.height=t.scrollHeight+'px';}
 
-/* addProduct() …  [unchanged] */
+/* ========= addProduct ========= */
+function addProduct(){
+  const div=document.createElement('div');
+  div.className='product-group';
+  div.innerHTML=`
+    <textarea name="product_name" placeholder="Nimi" required
+              oninput="autoExpand(this)"></textarea>
+    <input type="number" name="product_qty" placeholder="Kogus" required>
+    <input type="number" step="0.01" name="product_price_gross" placeholder="Hind (koos KM)" required>`;
+  document.getElementById('products').appendChild(div);
+}
 
-/* ==================== PAGINATION ==================== */
-const PAGE_SIZE = 50;
+/* ========= form submission ========= */
+const form=document.getElementById('invoiceForm');
+const statusMsg=document.getElementById('status');
+
+form.addEventListener('submit',async e=>{
+  e.preventDefault();
+  statusMsg.textContent='Saadan arvet...';
+
+  const products=[...document.querySelectorAll('.product-group')].map(g=>({
+    name : g.querySelector('[name="product_name"]').value.trim(),
+    qty  : parseFloat(g.querySelector('[name="product_qty"]').value),
+    price_gross: parseFloat(g.querySelector('[name="product_price_gross"]').value)
+  }));
+
+  const payload={
+    arve_nr      : form.arve_nr.value.trim(),
+    saaja_nimi   : form.saaja_nimi.value.trim(),
+    saaja_firma  : form.saaja_firma.value.trim(),
+    saaja_regnr  : form.saaja_regnr.value.trim(),
+    saaja_kmkr   : form.saaja_kmkr.value.trim(),
+    saaja_aadress: form.saaja_aadress.value.trim(),
+    email        : form.email.value.trim(),
+    products
+  };
+
+  try{
+    const r=await fetch('/.netlify/functions/create-invoice',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    if(!r.ok) throw new Error((await r.json()).error);
+    statusMsg.textContent='Arve saadetud ja arhiveeritud!';
+    form.reset(); document.getElementById('products').innerHTML=''; addProduct();
+    loadArchives();
+  }catch(err){
+    statusMsg.textContent='Viga: '+err.message;
+  }
+});
+
+/* ============ PAGINATION ============ */
+const PAGE_SIZE=50;
 let allFiles=[],currentPage=1;
 
-function renderArchivePage(page){
-  const archive=document.getElementById('archive');
-  const pager  =document.getElementById('pager');
-  const totalPages=Math.ceil(allFiles.length/PAGE_SIZE);
-  currentPage=Math.max(1,Math.min(page,totalPages));
+function renderArchivePage(p){
+  const arch=document.getElementById('archive');
+  const pager=document.getElementById('pager');
+  const total=Math.ceil(allFiles.length/PAGE_SIZE);
+  currentPage=Math.max(1,Math.min(p,total));
 
   const start=(currentPage-1)*PAGE_SIZE;
   const slice=allFiles.slice(start,start+PAGE_SIZE);
@@ -74,20 +159,24 @@ function renderArchivePage(page){
     if(f.description){
       try{const m=JSON.parse(f.description);inv=m.invoiceNr||'';name=m.name||'';mail=m.email||'';}catch{}
     }
-    html+=`<tr><td>${inv}</td><td>${name}</td><td>${mail}</td><td><a href="${f.webViewLink}" target="_blank">${f.name}</a></td></tr>`;
+    html+=`<tr>
+             <td>${inv}</td><td>${name}</td><td>${mail}</td>
+             <td><a href="${f.webViewLink}" target="_blank">${f.name}</a></td>
+           </tr>`;
   });
   html+='</table>';
-  archive.innerHTML=html;
+  arch.innerHTML=html;
 
-  if(totalPages<=1){pager.innerHTML='';return;}
-  let pHtml=`<button ${currentPage===1?'disabled':''} onclick="renderArchivePage(${currentPage-1})">« Prev</button>`;
-  for(let i=1;i<=totalPages;i++){
-    pHtml+=`<button class="${i===currentPage?'active':''}" onclick="renderArchivePage(${i})">${i}</button>`;
+  if(total<=1){pager.innerHTML='';return;}
+  let pHtml=`<button ${currentPage==1?'disabled':''} onclick="renderArchivePage(${currentPage-1})">« Prev</button>`;
+  for(let i=1;i<=total;i++){
+    pHtml+=`<button class="${i==currentPage?'active':''}" onclick="renderArchivePage(${i})">${i}</button>`;
   }
-  pHtml+=`<button ${currentPage===totalPages?'disabled':''} onclick="renderArchivePage(${currentPage+1})">Next »</button>`;
+  pHtml+=`<button ${currentPage==total?'disabled':''} onclick="renderArchivePage(${currentPage+1})">Next »</button>`;
   pager.innerHTML=pHtml;
 }
 
+/* ===== loadArchives once ===== */
 async function loadArchives(){
   const arch=document.getElementById('archive'); arch.textContent='Laen arhiivi...';
   try{
@@ -99,9 +188,9 @@ async function loadArchives(){
   }catch(e){arch.textContent='Viga arhiivi laadimisel: '+e.message;}
 }
 
-/* -------- DOM ready -------- */
+/* ===== DOM ready ===== */
 window.addEventListener('DOMContentLoaded',()=>{
-  if(document.querySelectorAll('.product-group').length===0) addProduct();
+  if(!document.querySelector('.product-group')) addProduct();
   loadArchives();
 });
 </script>
