@@ -168,11 +168,11 @@ function renderArchivePage(p){
   arch.innerHTML=html;
 
   if(total<=1){pager.innerHTML='';return;}
-  let pHtml=`<button ${currentPage==1?'disabled':''} onclick="renderArchivePage(${currentPage-1})">« Prev</button>`;
+  let pHtml=`<button ${currentPage==1?'disabled':''} onclick="renderArchivePage(${currentPage-1})">« Tagasi</button>`;
   for(let i=1;i<=total;i++){
     pHtml+=`<button class="${i==currentPage?'active':''}" onclick="renderArchivePage(${i})">${i}</button>`;
   }
-  pHtml+=`<button ${currentPage==total?'disabled':''} onclick="renderArchivePage(${currentPage+1})">Next »</button>`;
+  pHtml+=`<button ${currentPage==total?'disabled':''} onclick="renderArchivePage(${currentPage+1})">Edasi »</button>`;
   pager.innerHTML=pHtml;
 }
 
